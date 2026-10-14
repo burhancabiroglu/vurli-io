@@ -19,18 +19,22 @@ AI araçlarıyla çalışma kuralları [AGENTS.md](AGENTS.md) içinde. Codex'in 
 
 ## Geliştirme
 
-Gerekenler: kurulu bir JDK 25 ve çalışan bir Docker. Gradle kurmaya gerek yok; repodaki Gradle Wrapper (`./gradlew`) kendi sürümünü indirir. Gradle'ı çalıştıran Java 17 veya üstü olabilir; kod her durumda toolchain üzerinden JDK 25 ile derlenir.
+Monorepo: `backend/` (Spring Boot), `frontend/` (Next.js), kökte belgeler ve yerel geliştirme için `compose.yaml` (PostgreSQL, Mailpit).
+
+Gerekenler: JDK 25, Node.js 22 (`frontend/.nvmrc`) ve çalışan bir Docker. Gradle kurmaya gerek yok; `backend/gradlew` kendi sürümünü indirir.
+
+### Backend
 
 Derle ve bütün testleri çalıştır (Testcontainers gerçek bir PostgreSQL 18 başlatır):
 
 ```bash
-./gradlew build
+cd backend && ./gradlew build
 ```
 
-Uygulamayı yerelde çalıştır (Spring Boot `compose.yaml` ile PostgreSQL'i kendisi başlatır):
+Yerelde çalıştır. Spring Boot kökteki `compose.yaml` ile PostgreSQL ve Mailpit'i kendisi başlatır; gönderilen e-postalar http://localhost:8025 adresinde görünür:
 
 ```bash
-./gradlew bootRun
+cd backend && ./gradlew bootRun
 ```
 
 `bootRun` uygulamayı `dev` profiliyle açar. Giriş sistemi gelene kadar (M2) linkler, yalnızca bu profilde var olan bir JSON API ile denenebilir:
@@ -45,4 +49,26 @@ curl -i localhost:8080/deneme
 
 Diğer uç noktalar `DevLinkApiController` içinde: liste, hedef ve süre değiştirme, kapatma, açma, silme. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
 
-Her push ve PR'da GitHub Actions aynı `build` komutunu çalıştırır ([ci.yml](.github/workflows/ci.yml)).
+### Frontend
+
+İlk kurulum:
+
+```bash
+cd frontend && npm ci
+```
+
+Geliştirme sunucusu (http://localhost:3000):
+
+```bash
+cd frontend && npm run dev
+```
+
+CI'daki kontrollerin aynısı:
+
+```bash
+cd frontend && npm run lint && npm run typecheck && npm run build
+```
+
+### CI
+
+Her push ve PR'da yalnızca değişen tarafın işi çalışır: [backend.yml](.github/workflows/backend.yml) ve [frontend.yml](.github/workflows/frontend.yml).

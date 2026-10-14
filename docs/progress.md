@@ -4,19 +4,45 @@ Son güncelleme: 2026-10-15
 
 ## Şu an
 
-M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`, CI yeşil. **M2 (hesaplar ve kullanıcı paneli) planlandı**, kod henüz yok. Kullanıcı paneli Next.js BFF, yönetici paneli Spring + Thymeleaf olacak ([K28–K35](decisions.md#teknik)). M2 dört dilime bölündü ([yol haritası](roadmap.md)).
+M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`. **M2 (hesaplar ve kullanıcı paneli) devam ediyor**:
+
+1. Monorepo ve altyapı: tamamlandı (aşağıdaki kayıt).
+2. Hesaplar (Spring): sırada.
+3. Panel iskeleti (Next.js).
+4. Link ekranları.
 
 ## Sıradaki adım
 
-1. M2 dilim 1, monorepo ve altyapı:
-   - Spring projesini `git mv` ile `backend/`'e taşı.
-   - `frontend/` altında Next.js'i kur (App Router, TypeScript, Tailwind, shadcn/ui).
-   - CI'ı yol filtreli iki işe ayır.
-   - Compose'a Mailpit ekle.
-   - README, AGENTS.md ve Dependabot yollarını güncelle.
-2. Ardından dilim 2: hesaplar (Spring). Dev API ve `DevSecurityConfiguration` bu dilimde kaldırılır.
+1. Dilim 1 commit'inin Backend ve Frontend CI sonuçlarını kontrol et.
+2. Dilim 2, hesaplar (Spring):
+   - `V3__create_users.sql` (`users`, `email_tokens`; `workspaces.owner_id`)
+   - Argon2 ile kayıt, kayıtta kişisel workspace
+   - Mailpit'e giden iki dilli doğrulama e-postası
+   - JSON giriş/çıkış ve Spring Session JDBC
+
+   İlk test: aynı e-postayla eşzamanlı iki kayıttan yalnızca birinin başarılı olması ve yanıtların hesabın varlığını sızdırmaması.
 
 ## Kayıt
+
+### 2026-10-15 — M2 dilim 1: monorepo ve altyapı
+
+- Spring projesi `git mv` ile `backend/`'e taşındı (63 dosya yeniden adlandırma olarak izleniyor). Compose dosyası kökte kaldı; dev profili onu `spring.docker.compose.file=../compose.yaml` ile buluyor.
+- `frontend/`: `create-next-app@16.4.1` (App Router, TypeScript, Tailwind 4, ESLint, `src/`), ardından `shadcn@4.21.5` ve Button bileşeni. Örnek içerik temizlendi; geçici bir Vurli sayfası var. Node 22 `.nvmrc` ile sabitlendi.
+- Compose'a Mailpit eklendi (`axllent/mailpit:v1.31.5`; SMTP 1025, arayüz 8025, yalnızca localhost).
+- CI ikiye ayrıldı: `backend.yml` (`ci.yml`'den yeniden adlandırıldı) ve `frontend.yml`; her biri yalnızca kendi klasörü değişince çalışıyor. Frontend işi sırasıyla `npm ci`, production bağımlılık denetimi, lint, tip kontrolü ve build yapıyor; `setup-node` SHA ile sabit. Dependabot `backend/` için Gradle, `frontend/` için npm izliyor.
+- Yol üstünde bulunan sorunlar:
+  - **Tedarik zinciri:** shadcn, `clsx` + `tailwind-merge` yerine `cn` adlı bir paket ekledi. Paket adı 2013'ten kalma ve sonradan devredilmiş olduğu için incelendi: yayıncısı shadcn (`shadcn-ui/cn` reposu), kurulumda çalışan script'i ve bağımlılığı yok. 603 paketin hepsinin npm imzası doğrulandı (`npm audit signatures`).
+  - **Gereksiz çalışma zamanı bağımlılığı:** `shadcn init` CLI paketini `dependencies`'e eklemişti. CSS'i yalnızca build sırasında okunduğu için `devDependencies`'e taşındı; production denetimi yeniden temiz.
+  - **Temiz checkout'ta tip kontrolü:** Next.js'in ürettiği `LayoutProps` tipi `.next/types` olmadan bulunamıyor. Yerelde önceki build sayesinde gizli kalan bu sorun, CI adımları temiz kurulumla tekrarlanınca ortaya çıktı. `typecheck` artık önce `next typegen` çalıştırıyor.
+  - **Font:** shadcn `globals.css`'e kendine başvuran `--font-sans: var(--font-sans)` satırını yazmıştı; sayfa Times ile çiziliyordu (tarayıcıda ölçüldü). `--font-geist-sans`'a bağlandı. Geist'e Türkçe harfler için `latin-ext` alt kümesi eklendi.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 151 test, 0 başarısız.
+  - Frontend, `node_modules` ve `.next` silinerek CI adımlarıyla tekrarlandı: `npm ci`, `npm audit --omit=dev --audit-level=high` (0 açık), lint, typecheck ve build başarılı.
+  - `./gradlew bootRun` (backend/ içinden): PostgreSQL ve Mailpit başladı; health, Mailpit arayüzü ve dev API 200 döndü.
+  - `npm run start`: sayfa tarayıcıda açıldı; font Geist ve Türkçe karakterler doğru.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık risk: `braces` (≤3.0.3) yığın taşması DoS açığı ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)) için yama yok. Yalnızca geliştirme araçlarında (ESLint, shadcn CLI) bulunuyor ve güvenilmeyen bir glob girdisi almıyor. npm'in önerdiği "düzeltme" `eslint-config-next`'i 16'dan 14'e düşürmek olduğu için uygulanmadı; yama çıkınca Dependabot PR açacak.
+- Not: en güncel Node LTS sürümü 24; yerelde 22 kurulu olduğu için 22 seçildi (Nisan 2027'ye kadar destekleniyor). Bilgisayarda Node 24'e geçilirse `.nvmrc` güncellenecek.
 
 ### 2026-10-15 — M2 kararları
 

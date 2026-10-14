@@ -1,0 +1,55 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+  pull_request:
+    paths: ['frontend/**', '.github/workflows/frontend.yml']
+
+# İş yalnızca kodu okur; varsayılan token'a yazma yetkisi verilmez.
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Lock dosyasındaki sürümler aynen kurulur.
+      - name: Install
+        run: npm ci
+
+      # Yalnızca canlıya giden bağımlılıklar kapı tutar; geliştirme araçlarındaki
+      # açıklar Dependabot ile izlenir (bkz. docs/progress.md).
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

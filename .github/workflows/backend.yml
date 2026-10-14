@@ -1,22 +1,27 @@
-name: CI
+name: Backend
 
 on:
   push:
     branches: [main]
+    paths: ['backend/**', '.github/workflows/backend.yml']
   pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
 
 # İş yalnızca kodu okur; varsayılan token'a yazma yetkisi verilmez.
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: backend-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

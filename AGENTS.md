@@ -9,10 +9,13 @@
 
 ## Engineering
 
-- Build and test: `./gradlew build` (Gradle Kotlin DSL; the Java 25 toolchain is resolved automatically). It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries. Test counts are in `build/test-results/test/*.xml`.
+- Monorepo: `backend/` (Spring Boot, Gradle Kotlin DSL) and `frontend/` (Next.js, npm). Run commands from inside the folder.
+- Backend build and test: `cd backend && ./gradlew build` (the Java 25 toolchain is resolved automatically). It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries. Test counts are in `backend/build/test-results/test/*.xml`.
+- Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && npm run build`. Production dependencies must pass `npm audit --omit=dev --audit-level=high`. Read `frontend/AGENTS.md` before writing Next.js code.
+- The Next.js frontend is a BFF: it holds no business rules and never talks to the database. Every authorization decision is made in Spring.
 - Modules are the top-level packages under `io.vurli`. A module's base package is its API; subpackages are internal.
-- Schema changes go only through Flyway migrations in `src/main/resources/db/migration`. Hibernate is set to `validate`.
-- `./gradlew bootRun` uses the `dev` profile: seed workspace from `db/dev` and an unauthenticated `/dev/api/links`. Anything `dev`-only must stay behind `@Profile("dev")`; `RedirectIntegrationTests` checks that the dev API is closed without it.
+- Schema changes go only through Flyway migrations in `backend/src/main/resources/db/migration`. Hibernate is set to `validate`.
+- `./gradlew bootRun` uses the `dev` profile and starts the root `compose.yaml` (PostgreSQL, Mailpit on http://localhost:8025): seed workspace from `db/dev` and an unauthenticated `/dev/api/links`. Anything `dev`-only must stay behind `@Profile("dev")`; `RedirectIntegrationTests` checks that the dev API is closed without it.
 - Every change to a link must invalidate `LinkCache` after its transaction commits.
 - Make one small behavior change at a time, together with its tests. Integration tests use real PostgreSQL via Testcontainers.
 - Never weaken a test or a security control to get a passing result.

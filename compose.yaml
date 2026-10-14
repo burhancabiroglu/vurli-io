@@ -1,5 +1,5 @@
-# Yalnızca yerel geliştirme içindir. Uygulama başlarken Spring Boot bu dosyayı
-# otomatik olarak çalıştırır (spring-boot-docker-compose).
+# Yalnızca yerel geliştirme içindir. Backend `bootRun` ile başlarken Spring Boot bu
+# dosyayı otomatik olarak çalıştırır (spring-boot-docker-compose).
 services:
   postgres:
     image: 'postgres:18'
@@ -12,6 +12,14 @@ services:
       - '127.0.0.1::5432'
     volumes:
       - 'postgres-data:/var/lib/postgresql'
+
+  # Gönderilen e-postaları yakalar; hiçbir e-posta dışarı çıkmaz.
+  # Gelen kutusu: http://localhost:8025
+  mailpit:
+    image: 'axllent/mailpit:v1.31.5'
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
 
 volumes:
   postgres-data:
