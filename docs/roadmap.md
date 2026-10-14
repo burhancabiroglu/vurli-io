@@ -40,7 +40,7 @@ Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba ta
 - Hız sınırları ve kotalar
 - İlk yük testi (k6 veya Gatling): yönlendirme gecikmesi ve kapasitesi ölçülür
 
-**Bitti sayılır:** engellenen linkin en geç 60 saniyede durduğu testle doğrulandı ve yük testi sonuçları kaydedildi.
+**Bitti sayılır:** yönetici engellemesi uçtan uca (panel → yönlendirme) testle doğrulandı ve yük testi sonuçları kaydedildi.
 
 ## M4 — Yayın ve kapalı beta (20–30 saat)
 

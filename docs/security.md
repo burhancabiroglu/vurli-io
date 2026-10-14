@@ -17,7 +17,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 **Testler:**
 
 - Tehlikeli işaretli URL reddedilir (Web Risk'in test URL'leriyle).
-- Engellenen link en geç 60 saniyede yönlendirmeyi durdurur.
+- Engelleme, commit'ten sonra başlayan bütün isteklerde etkilidir; eski kayıt cache'e geri yazılamaz (`LinkCacheTests` ile doğrulandı, M1).
 - Link sahibi engeli kaldıramaz.
 
 ## 2. Başka hesabın verisine erişim (IDOR)

@@ -1,5 +1,9 @@
 package io.vurli.link.internal;
 
+import java.time.Duration;
+
+import com.github.benmanes.caffeine.cache.Ticker;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +20,11 @@ class LinkConfiguration {
 	@Bean
 	CodeGenerator codeGenerator() {
 		return new RandomCodeGenerator();
+	}
+
+	@Bean
+	LinkCache linkCache(LinkRepository links) {
+		return new LinkCache(links::findSnapshotByCode, Duration.ofSeconds(60), 100_000, Ticker.systemTicker());
 	}
 
 }

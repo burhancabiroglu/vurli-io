@@ -6,15 +6,31 @@ Son güncelleme: 2026-10-14
 
 M0 tamamlandı ve GitHub'da (`burhancabiroglu/vurli-io`, CI yeşil). **M1, link çekirdeği** devam ediyor ([yol haritası](roadmap.md)). M1 üç dilime bölündü:
 
-1. **Link oluşturma: tamamlandı** (aşağıdaki kayıt).
-2. **Yönlendirme:** `GET`/`HEAD /{kod}` → 302, 404 veya 410; süre sonu, silinmiş ve engellenmiş link; Caffeine cache ve değişiklikte cache silme.
+1. **Link oluşturma: tamamlandı** (commit `e7db422`, CI yeşil).
+2. **Yönlendirme: tamamlandı** (aşağıdaki kayıt).
 3. **Yönetim:** hedef değiştirme, kapatma, silme, iyimser kilit (`version`); `dev` profilinde sabit workspace ile HTTP API.
 
 ## Sıradaki adım
 
-1. Dilim 2'ye başla. İlk test: süresi tam o anda dolan bir linkin 410 döndürmesi (sabit `Clock` ile). Ardından engellenen linkin cache'te kalmadığını gösteren test.
+1. Dilim 3'e başla. Her değişiklik (hedef, durum, silme) commit'ten sonra `LinkCache.invalidate` çağırmalı. İlk test: aynı `version` ile gelen iki güncellemeden yalnızca birinin kazanması. Ardından sahibinin `BLOCKED` durumunu kaldıramaması.
 
 ## Kayıt
+
+### 2026-10-14 — M1 dilim 2: yönlendirme
+
+- `link` modülü dışarıya `LinkResolver.resolve(kod)` açıyor; sonuç `LinkResolution` (`Redirect`, `Gone`, `NotFound`) olarak dönüyor. Karar her istekte o anki saatle veriliyor; cache'te yalnızca `LinkSnapshot` (hedef, durum, süre sonu, silinme) tutuluyor.
+- `LinkCache`: Caffeine, 60 sn TTL, 100.000 girdi; "yok" sonuçları da cache'leniyor. `LinkManagement.create` commit'ten sonra kodun cache girdisini siliyor.
+- `redirect` modülü: `RedirectController` 302, 404, 410 ve 503 (veritabanı hatası) döndürüyor. Bütün yanıtlarda `Cache-Control: no-store` var. Hata sayfaları Thymeleaf şablonları.
+- `SecurityConfiguration`: yalnızca tek segmentli `GET`/`HEAD` istekleri ve `/actuator/health` herkese açık; geri kalanı girişe yönlendiriliyor (M2'de gerçek girişle değişecek).
+- Mimari belgesindeki "engelleme en geç 60 sn" taahhüdü, aşağıdaki test sayesinde "commit'ten sonra anında" olarak güncellendi.
+- Doğrulama (`./gradlew clean build`): 128 test, 0 başarısız.
+  - `LinkCacheTests` (3): engellemeden önce okunup sonra biten bir yüklemenin eski kaydı cache'e bırakamadığı bariyerli test; "yok" sonuçlarının cache'lenmesi; TTL'in sahte saatle sınanması. Negatif kontrol: cache atomik olmayan bir yüklemeyle değiştirildi, yarış testi başarısız oldu, kod geri yüklendi.
+  - `LinkResolverTests` (19): süre sonunun tam sınırda (`now == expiresAt` → 410) çalışması; kapalı, engellenmiş ve silinmiş linkler; kodların büyük-küçük harf duyarlılığı; geçersiz veya rezerve kodlarda hiç sorgu yapılmaması.
+  - `RedirectIntegrationTests` (8, gerçek PostgreSQL ve güvenlik zinciri): 302 ile `no-store` ve çerez olmaması; gövdesiz HEAD; `?target=` parametresinin etkisiz kalması; 404 ve 410; link oluşturulunca cache'teki "yok" sonucunun temizlenmesi; health'in açık, diğer yolların kapalı olması.
+  - `RedirectControllerTests` (1): veritabanı hatasında 503 ve `Location` başlığının olmaması.
+  - Gerçek sunucuda (`./gradlew bootRun` ve `curl`): 302 ile `Location`, `no-store` ve güvenlik başlıkları geldi, `Set-Cookie` yoktu; HEAD aynı yönlendirmeyi döndürdü; bilinmeyen kod 404 aldı. Yerel geliştirme veritabanına `deneme1` adlı bir test linki eklendi.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık: `Host` başlığı kontrolü henüz yok, M2'de panel `app.vurli.io`'ya taşınırken eklenecek.
 
 ### 2026-10-14 — M1 dilim 1: link oluşturma
 

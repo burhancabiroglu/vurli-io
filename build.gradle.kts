@@ -29,6 +29,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.flywaydb:flyway-database-postgresql")
+	implementation("com.github.ben-manes.caffeine:caffeine")
 	implementation("org.springframework.modulith:spring-modulith-starter-core")
 	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")

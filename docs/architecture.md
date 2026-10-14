@@ -64,26 +64,32 @@ Modeldeki önemli tercihler:
 ## Yönlendirme akışı
 
 ```
-GET vurli.io/{kod}
- 1. Kod formatı geçersizse veya rezerve bir adsa      → 404 (veritabanına gidilmez)
- 2. Cache'te ara; yoksa veritabanından oku ve cache'e koy
+GET /{kod}                                  (RedirectController → LinkResolver)
+ 1. Kod formatı geçersizse veya rezerve bir adsa      → 404 (cache'e ve veritabanına gidilmez)
+ 2. Cache'te ara; yoksa veritabanından oku ve cache'e koy ("yok" sonucu da cache'lenir)
  3. Link yoksa                                          → 404
- 4. Silinmiş, kapalı, engellenmiş veya süresi dolmuşsa  → 410 "Bu link artık kullanılamıyor"
- 5. 302, Location: kayıtlı hedef, Cache-Control: no-store
- 6. Tıklamayı bellekteki kuyruğa bırak (yanıt bunu beklemez)
+ 4. Silinmiş, kapalı, engellenmiş veya süresi dolmuşsa  → 410 "This link is no longer available"
+ 5. Veritabanına ulaşılamazsa                           → 503; tahminle yönlendirme yapılmaz
+ 6. 302, Location: kayıtlı hedef
+ 7. Tıklamayı bellekteki kuyruğa bırak (M3; yanıt bunu beklemez)
 ```
 
-- `HEAD` aynı yanıtı verir ama tıklama sayılmaz.
+- Bütün yanıtlar `Cache-Control: no-store` taşır. Yönlendirme yanıtları çerez veya oturum oluşturmaz.
+- `HEAD` aynı yanıtı gövdesiz verir ama tıklama sayılmaz.
 - Ziyaretçinin query string'i hedefe eklenmez.
+- Süre sonu, cache'teki kayıt üzerinde her istekte o anki saate göre hesaplanır.
 - Sunucu hedef siteyi hiçbir zaman ziyaret etmez. Web Risk kontrolü URL'yi Google'a sorar, siteyi açmaz; bu yüzden SSRF yüzeyi yoktur.
-- Yalnızca tanımlı host'lar (`vurli.io`, `app.vurli.io`) işlenir. Başka bir `Host` başlığı gelirse `404` döner.
-- Rezerve adlar: `app`, `api`, `admin`, `login`, `static`, `assets`, `health`, `report`, `abuse`, `www` ve benzerleri. Liste M1'de kesinleşir.
+- Yalnızca tanımlı host'lar (`vurli.io`, `app.vurli.io`) işlenecek; başka bir `Host` başlığı `404` alacak. Henüz uygulanmadı; panel ayrı host'a taşınırken (M2) eklenecek.
+- Rezerve adlar `AliasPolicy` içinde tanımlı (`app`, `api`, `admin`, `login`, `actuator`, `abuse` ve benzerleri).
+- Kimlik doğrulaması gerekmeyen yollar yalnızca tek segmentli `GET`/`HEAD` istekleri ve `/actuator/health`. Geri kalan her şey girişe yönlendirilir.
 
 ### Cache ve engellemenin etkisi
 
-Cache Caffeine'dir: boyutu sınırlıdır ve girdiler 60 saniye yaşar. Bir link değiştiğinde (hedef, durum veya silme), transaction commit edildikten sonra o linkin cache girdisi silinir. Tek instance olduğu için silme anında etkili olur.
+Cache Caffeine'dir: boyutu sınırlıdır ve girdiler 60 saniye yaşar. Bir link değiştiğinde (oluşturma, hedef, durum veya silme), transaction commit edildikten sonra o kodun cache girdisi silinir.
 
-Geriye küçük bir yarış kalıyor. Cache'i dolduran bir okuma, eski kaydı engellemeden hemen önce okuyup engellemeden hemen sonra cache'e yazabilir. Bu durumda eski kayıt en fazla 60 saniye cache'te kalır. Dolayısıyla taahhüt şu: **engelleme pratikte anında, en geç 60 saniyede etkili olur.** Bu sınır bir entegrasyon testiyle doğrulanacak.
+İlk tasarımda bir yarış endişesi vardı: cache'i dolduran bir okuma, eski kaydı engellemeden önce okuyup engellemeden sonra cache'e yazabilir mi? Caffeine aynı anahtarı atomik olarak yükler ve o anahtar için devam eden yükleme bitene kadar `invalidate` çağrısını bekletir. Bu yüzden engellemeden önce okunan eski kayıt, engellemeden sonra cache'te kalamaz. `LinkCacheTests` bu senaryoyu bariyerlerle zorluyor. Cache atomik olmayan bir yüklemeyle (oku, yükle, koy) değiştirildiğinde test başarısız oluyor. Dolayısıyla taahhüt şu: **uygulama üzerinden yapılan engelleme, commit anından itibaren yeni isteklerde etkilidir.** 60 saniyelik TTL yalnızca uygulama dışından (elle SQL ile) yapılan değişikliklerin en geç ne zaman görüneceğini sınırlar.
+
+Commit'ten önce kararı verilmiş, yanıtı yolda olan bir yönlendirme geri alınamaz. "Anında" ifadesi commit'ten sonra başlayan istekler içindir.
 
 İkinci bir uygulama instance'ı eklenirse cache silme işleminin instance'lar arasında yayılması gerekir. PostgreSQL `LISTEN/NOTIFY` bunun için yeterli. Karar o zaman verilir.
 

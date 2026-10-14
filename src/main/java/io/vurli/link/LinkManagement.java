@@ -8,6 +8,7 @@ import java.util.UUID;
 import io.vurli.link.internal.AliasPolicy;
 import io.vurli.link.internal.CodeGenerator;
 import io.vurli.link.internal.Link;
+import io.vurli.link.internal.LinkCache;
 import io.vurli.link.internal.LinkRepository;
 import io.vurli.link.internal.TargetUrlValidator;
 import org.hibernate.exception.ConstraintViolationException;
@@ -35,14 +36,17 @@ public class LinkManagement {
 
 	private final CodeGenerator codeGenerator;
 
+	private final LinkCache cache;
+
 	private final Clock clock;
 
 	public LinkManagement(LinkRepository links, PlatformTransactionManager transactionManager,
-			TargetUrlValidator targetUrlValidator, CodeGenerator codeGenerator, Clock clock) {
+			TargetUrlValidator targetUrlValidator, CodeGenerator codeGenerator, LinkCache cache, Clock clock) {
 		this.links = links;
 		this.transaction = new TransactionTemplate(transactionManager);
 		this.targetUrlValidator = targetUrlValidator;
 		this.codeGenerator = codeGenerator;
+		this.cache = cache;
 		this.clock = clock;
 	}
 
@@ -89,9 +93,12 @@ public class LinkManagement {
 	private Optional<LinkView> insert(UUID workspaceId, String code, String targetUrl, Instant expiresAt,
 			Instant now) {
 		try {
-			return Optional.ofNullable(this.transaction.execute((status) -> this.links
+			LinkView created = this.transaction.execute((status) -> this.links
 				.saveAndFlush(Link.create(workspaceId, code, targetUrl, expiresAt, now))
-				.toView()));
+				.toView());
+			// After commit: drops a cached "not found" for this code.
+			this.cache.invalidate(code);
+			return Optional.ofNullable(created);
 		}
 		catch (DataIntegrityViolationException ex) {
 			if (isCodeConflict(ex)) {
