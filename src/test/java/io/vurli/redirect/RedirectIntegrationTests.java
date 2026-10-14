@@ -12,6 +12,7 @@ import java.util.UUID;
 import io.vurli.TestcontainersConfiguration;
 import io.vurli.link.CreateLinkRequest;
 import io.vurli.link.LinkManagement;
+import io.vurli.link.LinkModeration;
 import io.vurli.link.LinkView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class RedirectIntegrationTests {
 
 	@Autowired
 	private LinkManagement linkManagement;
+
+	@Autowired
+	private LinkModeration linkModeration;
 
 	@Autowired
 	private JdbcTemplate jdbc;
@@ -115,6 +119,43 @@ class RedirectIntegrationTests {
 	}
 
 	@Test
+	void ownerChangesTakeEffectOnTheNextVisit() throws Exception {
+		LinkView link = create("https://example.com/old");
+		this.mvc.perform(get("/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/old"));
+
+		LinkView changed = this.linkManagement.changeTarget(this.workspaceId, link.id(), 0, "https://example.com/new");
+		this.mvc.perform(get("/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/new"));
+
+		LinkView disabled = this.linkManagement.disable(this.workspaceId, link.id(), changed.version());
+		this.mvc.perform(get("/" + link.code())).andExpect(status().isGone());
+
+		this.linkManagement.enable(this.workspaceId, link.id(), disabled.version());
+		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+	}
+
+	@Test
+	void blockTakesEffectOnTheNextVisit() throws Exception {
+		LinkView link = create("https://example.com/phishing");
+		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+
+		this.linkModeration.block(link.id());
+
+		this.mvc.perform(get("/" + link.code()))
+			.andExpect(status().isGone())
+			.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
+	}
+
+	@Test
+	void deletedLinkIsGoneOnTheNextVisit() throws Exception {
+		LinkView link = create("https://example.com/menu");
+		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+
+		this.linkManagement.delete(this.workspaceId, link.id(), 0);
+
+		this.mvc.perform(get("/" + link.code())).andExpect(status().isGone());
+	}
+
+	@Test
 	void healthIsPublic() throws Exception {
 		this.mvc.perform(get("/actuator/health")).andExpect(status().isOk());
 	}
@@ -122,6 +163,11 @@ class RedirectIntegrationTests {
 	@Test
 	void otherPathsRequireLogin() throws Exception {
 		this.mvc.perform(get("/api/links")).andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void devApiDoesNotExistOutsideTheDevProfile() throws Exception {
+		this.mvc.perform(get("/dev/api/links")).andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
 	}
 
 	private LinkView create(String targetUrl) {

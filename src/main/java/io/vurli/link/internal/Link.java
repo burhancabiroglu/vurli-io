@@ -3,6 +3,7 @@ package io.vurli.link.internal;
 import java.time.Instant;
 import java.util.UUID;
 
+import io.vurli.link.LinkBlockedException;
 import io.vurli.link.LinkStatus;
 import io.vurli.link.LinkView;
 import jakarta.persistence.Column;
@@ -64,9 +65,64 @@ public class Link {
 		return link;
 	}
 
+	/**
+	 * Not named {@code version()}: Spring Data reads the {@code version} property to tell
+	 * new entities apart, and would pick up a primitive accessor that fails on null.
+	 */
+	public boolean hasVersion(long expectedVersion) {
+		return this.version != null && this.version == expectedVersion;
+	}
+
+	public String code() {
+		return this.code;
+	}
+
+	/** A new target has not been safety checked yet, whatever was true for the old one. */
+	public void changeTarget(String targetUrl, Instant now) {
+		requireNotBlocked();
+		this.targetUrl = targetUrl;
+		this.safetyCheckedAt = null;
+		this.updatedAt = now;
+	}
+
+	public void changeExpiry(Instant expiresAt, Instant now) {
+		requireNotBlocked();
+		this.expiresAt = expiresAt;
+		this.updatedAt = now;
+	}
+
+	public void disable(Instant now) {
+		requireNotBlocked();
+		this.status = LinkStatus.DISABLED;
+		this.updatedAt = now;
+	}
+
+	public void enable(Instant now) {
+		requireNotBlocked();
+		this.status = LinkStatus.ACTIVE;
+		this.updatedAt = now;
+	}
+
+	/** Allowed even when blocked: the row stays, so the code is never handed out again. */
+	public void delete(Instant now) {
+		this.deletedAt = now;
+		this.updatedAt = now;
+	}
+
+	public void block(Instant now) {
+		this.status = LinkStatus.BLOCKED;
+		this.updatedAt = now;
+	}
+
 	public LinkView toView() {
 		return new LinkView(this.id, this.code, this.targetUrl, this.status, this.expiresAt, this.createdAt,
 				this.version);
+	}
+
+	private void requireNotBlocked() {
+		if (this.status == LinkStatus.BLOCKED) {
+			throw new LinkBlockedException();
+		}
 	}
 
 }

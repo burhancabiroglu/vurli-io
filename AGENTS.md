@@ -12,6 +12,8 @@
 - Build and test: `./gradlew build` (Gradle Kotlin DSL; the Java 25 toolchain is resolved automatically). It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries. Test counts are in `build/test-results/test/*.xml`.
 - Modules are the top-level packages under `io.vurli`. A module's base package is its API; subpackages are internal.
 - Schema changes go only through Flyway migrations in `src/main/resources/db/migration`. Hibernate is set to `validate`.
+- `./gradlew bootRun` uses the `dev` profile: seed workspace from `db/dev` and an unauthenticated `/dev/api/links`. Anything `dev`-only must stay behind `@Profile("dev")`; `RedirectIntegrationTests` checks that the dev API is closed without it.
+- Every change to a link must invalidate `LinkCache` after its transaction commits.
 - Make one small behavior change at a time, together with its tests. Integration tests use real PostgreSQL via Testcontainers.
 - Never weaken a test or a security control to get a passing result.
 - Keep secrets and real personal data out of code, logs, fixtures and prompts.

@@ -2,8 +2,10 @@ package io.vurli.link;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 
 import io.vurli.link.internal.AliasPolicy;
 import io.vurli.link.internal.CodeGenerator;
@@ -14,6 +16,9 @@ import io.vurli.link.internal.TargetUrlValidator;
 import org.hibernate.exception.ConstraintViolationException;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,6 +30,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class LinkManagement {
 
 	static final int MAX_CODE_ATTEMPTS = 3;
+
+	static final int MAX_PAGE_SIZE = 100;
 
 	private static final String CODE_CONSTRAINT = "uk_links_code";
 
@@ -82,6 +89,94 @@ public class LinkManagement {
 			}
 		}
 		throw new IllegalStateException("No free code found after " + MAX_CODE_ATTEMPTS + " attempts");
+	}
+
+	/**
+	 * @throws LinkNotFoundException if the link is not in this workspace or was deleted
+	 */
+	public LinkView get(UUID workspaceId, UUID linkId) {
+		return this.links.findByIdAndWorkspaceIdAndDeletedAtIsNull(linkId, workspaceId)
+			.map(Link::toView)
+			.orElseThrow(LinkNotFoundException::new);
+	}
+
+	/**
+	 * Newest first. The page size is capped so a single request cannot load a whole
+	 * workspace.
+	 */
+	public List<LinkView> list(UUID workspaceId, int page, int size) {
+		PageRequest request = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
+				Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+		return this.links.findByWorkspaceIdAndDeletedAtIsNull(workspaceId, request)
+			.stream()
+			.map(Link::toView)
+			.toList();
+	}
+
+	/**
+	 * The new target goes through the same validation as on creation and loses any
+	 * previous safety check.
+	 * @throws InvalidTargetUrlException if the target is not an acceptable destination
+	 */
+	public LinkView changeTarget(UUID workspaceId, UUID linkId, long expectedVersion, String targetUrl) {
+		String validated = this.targetUrlValidator.validate(targetUrl);
+		return mutate(workspaceId, linkId, expectedVersion, (link, now) -> link.changeTarget(validated, now));
+	}
+
+	/**
+	 * @param expiresAt the new expiry, or {@code null} to remove it
+	 * @throws InvalidExpiryException if the expiry is not in the future
+	 */
+	public LinkView changeExpiry(UUID workspaceId, UUID linkId, long expectedVersion, Instant expiresAt) {
+		return mutate(workspaceId, linkId, expectedVersion, (link, now) -> {
+			if (expiresAt != null && !expiresAt.isAfter(now)) {
+				throw new InvalidExpiryException();
+			}
+			link.changeExpiry(expiresAt, now);
+		});
+	}
+
+	public LinkView disable(UUID workspaceId, UUID linkId, long expectedVersion) {
+		return mutate(workspaceId, linkId, expectedVersion, Link::disable);
+	}
+
+	public LinkView enable(UUID workspaceId, UUID linkId, long expectedVersion) {
+		return mutate(workspaceId, linkId, expectedVersion, Link::enable);
+	}
+
+	/**
+	 * The link stops redirecting and disappears for its owner, but its code stays
+	 * reserved forever.
+	 */
+	public void delete(UUID workspaceId, UUID linkId, long expectedVersion) {
+		mutate(workspaceId, linkId, expectedVersion, Link::delete);
+	}
+
+	/**
+	 * Applies an owner change. The version is checked twice: against the loaded row here,
+	 * and by JPA's {@code @Version} on flush for a change committed in between.
+	 * @throws LinkNotFoundException if the link is not in this workspace or was deleted
+	 * @throws LinkVersionConflictException if the link changed since the caller read it
+	 * @throws LinkBlockedException if an administrator blocked the link
+	 */
+	private LinkView mutate(UUID workspaceId, UUID linkId, long expectedVersion, BiConsumer<Link, Instant> change) {
+		LinkView changed;
+		try {
+			changed = this.transaction.execute((status) -> {
+				Link link = this.links.findByIdAndWorkspaceIdAndDeletedAtIsNull(linkId, workspaceId)
+					.orElseThrow(LinkNotFoundException::new);
+				if (!link.hasVersion(expectedVersion)) {
+					throw new LinkVersionConflictException();
+				}
+				change.accept(link, this.clock.instant());
+				return this.links.saveAndFlush(link).toView();
+			});
+		}
+		catch (OptimisticLockingFailureException ex) {
+			throw new LinkVersionConflictException();
+		}
+		this.cache.invalidate(changed.code());
+		return changed;
 	}
 
 	/**

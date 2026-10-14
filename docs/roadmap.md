@@ -2,7 +2,7 @@
 
 Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba tahmin. M1 bittiğinde gerçek hıza göre güncellenecek.
 
-## M0 — İskelet (10–15 saat)
+## M0 — İskelet (10–15 saat) — tamamlandı, 2026-10-14
 
 - Git deposu ve GitHub, Gradle Wrapper, Spring Boot projesi, modül paketleri
 - Yerel PostgreSQL için Docker Compose; Flyway kurulumu (ilk gerçek migration M1'deki `links` tablosu)
@@ -11,7 +11,7 @@ Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba ta
 
 **Bitti sayılır:** temiz bir klonda `./gradlew build` geçiyor ve CI yeşil.
 
-## M1 — Link çekirdeği (25–35 saat)
+## M1 — Link çekirdeği (25–35 saat) — tamamlandı, 2026-10-15
 
 - `links` tablosu, kod üretimi, özel ad, URL doğrulama
 - Yönlendirme: `302`, `404`, `410`, `HEAD` ve süre sonu kontrolü; cache ve değişiklikte cache silme

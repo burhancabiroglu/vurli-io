@@ -1,20 +1,43 @@
 # İlerleme
 
-Son güncelleme: 2026-10-14
+Son güncelleme: 2026-10-15
 
 ## Şu an
 
-M0 tamamlandı ve GitHub'da (`burhancabiroglu/vurli-io`, CI yeşil). **M1, link çekirdeği** devam ediyor ([yol haritası](roadmap.md)). M1 üç dilime bölündü:
+**M1 (link çekirdeği) tamamlandı.** Link HTTP üzerinden oluşturulup yönlendirilebiliyor ve bütün testler geçiyor. M1 üç dilimde yapıldı:
 
-1. **Link oluşturma: tamamlandı** (commit `e7db422`, CI yeşil).
-2. **Yönlendirme: tamamlandı** (aşağıdaki kayıt).
-3. **Yönetim:** hedef değiştirme, kapatma, silme, iyimser kilit (`version`); `dev` profilinde sabit workspace ile HTTP API.
+1. Link oluşturma (commit `e7db422`, CI yeşil)
+2. Yönlendirme (commit `1fd1286`, CI yeşil)
+3. Yönetim ve dev API (aşağıdaki kayıt)
+
+Sıradaki kilometre taşı: **M2, hesaplar ve panel** ([yol haritası](roadmap.md)).
 
 ## Sıradaki adım
 
-1. Dilim 3'e başla. Her değişiklik (hedef, durum, silme) commit'ten sonra `LinkCache.invalidate` çağırmalı. İlk test: aynı `version` ile gelen iki güncellemeden yalnızca birinin kazanması. Ardından sahibinin `BLOCKED` durumunu kaldıramaması.
+1. M2'yi dilimlere böl. Önerilen ilk dilim: `users` tablosu, kayıt ve e-posta doğrulama. E-posta gönderimi için sağlayıcı seçimi ([A01](decisions.md#açık-sorular)) bu dilimden önce gerekiyor; yerelde e-postaları yakalamak için Mailpit gibi bir test sunucusu kullanılabilir.
+2. M2'de kaldırılacaklar: `DevSecurityConfiguration`, `DevLinkApiController`, `db/dev` tohum verisi ve `formLogin` varsayılanı.
 
 ## Kayıt
+
+### 2026-10-15 — M1 dilim 3: yönetim ve dev API
+
+- `LinkManagement`: `get`, `list` (en yeni önce; sayfa boyutu en fazla 100), `changeTarget`, `changeExpiry`, `disable`, `enable`, `delete`. Bütün değişiklikler `expectedVersion` alıyor ve tek bir yoldan geçiyor:
+  1. `id + workspaceId` ile yükleme (silinmiş linkler görünmüyor)
+  2. Sürüm karşılaştırması
+  3. Değişiklik ve `flush` (JPA `@Version` aradaki yarışı yakalıyor)
+  4. Commit'ten sonra cache silme
+- Yeni hedef de oluşturmadaki doğrulamadan geçiyor ve `safety_checked_at` sıfırlanıyor.
+- Engellenmiş link sahibi için donmuş durumda: açılamaz, kapatılamaz, hedefi ve süresi değiştirilemez; yalnızca silinebilir.
+- `LinkModeration.block`: yönetici engellemesi sürüm istemiyor; sahibin bir değişikliği araya girerse yeniden deniyor. Yetki ve denetim kaydı M3'te `abuse` modülüyle gelecek.
+- Dev API (yalnızca `dev` profili): `/dev/api/links` altında JSON uç noktaları; hatalar `ProblemDetail` biçiminde `code` alanıyla dönüyor. Sabit workspace Flyway `db/dev` tohum verisinden geliyor. `./gradlew bootRun` artık `dev` profiliyle açılıyor.
+- Bulunan hata: entity'deki `version()` metodu, Spring Data'nın "yeni kayıt mı" kontrolünde getter sanıldı ve ilkel `long`, `null` değerde hata verdi (29 test başarısız oldu). Metot `hasVersion(long)` olarak yeniden adlandırıldı.
+- Doğrulama (`./gradlew build`): 150 test, 0 başarısız.
+  - `LinkLifecycleIntegrationTests` (14): başka workspace'in linki okunamıyor, değiştirilemiyor ve listede görünmüyor; eski sürümle güncelleme reddediliyor; aynı sürümle 8 paralel güncellemeden tam 1 kazanan; engelli link sahibi tarafından değiştirilemiyor ama silinebiliyor; yönetici engellemesi sahibin sürümünü eskitiyor; silinen link görünmüyor; liste sırası ve sayfa sınırı.
+  - `RedirectIntegrationTests` (+4): hedef değişikliği, kapatma, engelleme ve silme bir sonraki ziyarette etkili; dev profili kapalıyken `/dev/api/**` giriş istiyor.
+  - `DevLinkApiTests` (5, dev profili): oluştur → yönlendir → değiştir → sil akışı; 409 `version_conflict` ve `alias_taken`; 422 nedeniyle birlikte; başka workspace'in linki 404.
+  - Negatif kontroller: sürüm kontrolü kaldırılınca 2 test, workspace filtresi kaldırılınca 3 test başarısız oldu; kod geri yüklendi. Uygulamadaki sürüm kontrolü kaldırıldığında bile paralel yazma testi geçti; JPA `@Version` eşzamanlı yazmaları tek başına yakalıyor.
+  - Gerçek sunucuda (`./gradlew bootRun` ve `curl`): oluştur → 302 → hedef değiştir (v1) → 302 yeni hedefe → eski sürümle kapatma 409 → sil 204 → ziyaret 410 → aynı adı tekrar alma 409.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
 
 ### 2026-10-14 — M1 dilim 2: yönlendirme
 

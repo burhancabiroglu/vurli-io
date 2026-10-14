@@ -2,7 +2,7 @@
 
 Küçük işletmeler ve içerik üreticileri için güvenli link kısaltma servisi. Java ve Spring Boot ile geliştiriliyor. Alan adı: **vurli.io**.
 
-**Durum (2026-10-14):** Ürün ve teknik kararlar verildi, kod henüz yazılmadı. Sıradaki adım M0 (proje iskeleti).
+**Durum (2026-10-15):** M1 (link çekirdeği) tamamlandı: link oluşturma, güvenli yönlendirme, yönetim ve engelleme testlerle doğrulandı. Sıradaki kilometre taşı M2: hesaplar ve panel. Ayrıntı: [ilerleme](docs/progress.md).
 
 ## Belgeler
 
@@ -32,5 +32,17 @@ Uygulamayı yerelde çalıştır (Spring Boot `compose.yaml` ile PostgreSQL'i ke
 ```bash
 ./gradlew bootRun
 ```
+
+`bootRun` uygulamayı `dev` profiliyle açar. Giriş sistemi gelene kadar (M2) linkler, yalnızca bu profilde var olan bir JSON API ile denenebilir:
+
+```bash
+curl -s -X POST localhost:8080/dev/api/links -H 'Content-Type: application/json' -d '{"targetUrl":"https://example.com","alias":"deneme"}'
+```
+
+```bash
+curl -i localhost:8080/deneme
+```
+
+Diğer uç noktalar `DevLinkApiController` içinde: liste, hedef ve süre değiştirme, kapatma, açma, silme. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
 
 Her push ve PR'da GitHub Actions aynı `build` komutunu çalıştırır ([ci.yml](.github/workflows/ci.yml)).

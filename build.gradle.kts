@@ -57,3 +57,8 @@ dependencyManagement {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// bootRun is local development only: dev profile with seed workspace and dev API.
+tasks.bootRun {
+	systemProperty("spring.profiles.active", "dev")
+}

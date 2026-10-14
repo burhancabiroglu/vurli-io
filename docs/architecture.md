@@ -93,6 +93,14 @@ Commit'ten önce kararı verilmiş, yanıtı yolda olan bir yönlendirme geri al
 
 İkinci bir uygulama instance'ı eklenirse cache silme işleminin instance'lar arasında yayılması gerekir. PostgreSQL `LISTEN/NOTIFY` bunun için yeterli. Karar o zaman verilir.
 
+## Link yönetimi
+
+- Sahibin her işlemi workspace kapsamlıdır: link `id + workspaceId` ile yüklenir. Başka bir workspace'in veya silinmiş bir link "bulunamadı" görünür.
+- Değişiklikler son görülen `version` ile gelir. Uyuşmazlık, başkasının değişikliğini ezmek yerine çakışma hatası verir. Kontrol iki katmanlıdır: önce yüklenen satır karşılaştırılır, sonra JPA `@Version` arada commit edilmiş değişikliği yakalar.
+- Engellenmiş link sahibi için donmuştur; yalnızca silinebilir. Yönetici engellemesi sürüm istemez ve sahibin işlemine karşı her zaman kazanır.
+- Silme satırı silmez, `deleted_at` alanını doldurur; kod rezerve kalır.
+- Her başarılı değişiklikten sonra, commit'in ardından o kodun cache girdisi silinir.
+
 ## Link oluşturma
 
 1. **URL doğrulama** (`TargetUrlValidator`).
