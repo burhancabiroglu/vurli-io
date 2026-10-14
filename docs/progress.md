@@ -4,14 +4,31 @@ Son güncelleme: 2026-10-14
 
 ## Şu an
 
-M0 (iskelet) tamamlandı ve GitHub'da (`burhancabiroglu/vurli-io`). Build aracı Maven'dan Gradle'a çevrildi ve GitHub'a gönderildi. Sıradaki iş: **M1, link çekirdeği** ([yol haritası](roadmap.md)).
+M0 tamamlandı ve GitHub'da (`burhancabiroglu/vurli-io`, CI yeşil). **M1, link çekirdeği** devam ediyor ([yol haritası](roadmap.md)). M1 üç dilime bölündü:
+
+1. **Link oluşturma: tamamlandı** (aşağıdaki kayıt).
+2. **Yönlendirme:** `GET`/`HEAD /{kod}` → 302, 404 veya 410; süre sonu, silinmiş ve engellenmiş link; Caffeine cache ve değişiklikte cache silme.
+3. **Yönetim:** hedef değiştirme, kapatma, silme, iyimser kilit (`version`); `dev` profilinde sabit workspace ile HTTP API.
 
 ## Sıradaki adım
 
-1. Gradle geçişi commit'inin GitHub Actions sonucunu kontrol et.
-2. M1'e başla: `links` tablosu için ilk Flyway migration'ı (`V1__create_links.sql`) ve ilk test olarak paralel iki istekte aynı adın yalnızca bir kez alınabilmesi.
+1. Dilim 2'ye başla. İlk test: süresi tam o anda dolan bir linkin 410 döndürmesi (sabit `Clock` ile). Ardından engellenen linkin cache'te kalmadığını gösteren test.
 
 ## Kayıt
+
+### 2026-10-14 — M1 dilim 1: link oluşturma
+
+- Şema: `V1__create_workspaces.sql` (izolasyon sınırı, en sade hali) ve `V2__create_links.sql` (`uk_links_code` unique constraint, durum için check constraint, workspace'e yabancı anahtar). Silinen linkler satırını koruduğu için kodları sonsuza kadar rezerve kalıyor.
+- `link` modülünün dışa açık API'si: `LinkManagement.create`, `CreateLinkRequest`, `LinkView`, `LinkStatus` ve nedenleriyle hata sınıfları. Entity, repository, doğrulayıcı ve kod üretici `link.internal` içinde.
+- `TargetUrlValidator`: şema, kimlik bilgisi, ters bölü ve kontrol karakterleri, IP adresi, port ve kendine dönen link kontrolleri; IDN ve normalizasyon ([mimari](architecture.md#link-oluşturma)).
+- `AliasPolicy`: özel ad küçük harfe çevriliyor; biçim kuralları ve rezerve ad listesi var. `RandomCodeGenerator`: 7 karakter Base62, `SecureRandom`.
+- Zaman bir `Clock` bean'inden okunuyor; süre sonu testleri sabit saatle yazıldı.
+- Doğrulama (`./gradlew clean build`): 97 test, 0 başarısız.
+  - `TargetUrlValidatorTests` (58): kabul ve normalizasyon örnekleri; reddedilen her neden için saldırı örnekleri (`javascript:`, `user@host`, `\@`, CRLF, `0x7f.0x1`, `[::1]`, `:8443`, `vurli.io`). Beklenen punycode değeri Python'un IDNA kodlayıcısıyla bağımsız olarak hesaplandı.
+  - `AliasPolicyTests` (24), `RandomCodeGeneratorTests` (2).
+  - `LinkManagementIntegrationTests` (10, gerçek PostgreSQL): 8 paralel istekte aynı ad için tam olarak 1 kazanan; silinmiş linkin adı yeniden verilmiyor; yalnızca harf büyüklüğüyle farklı ad reddediliyor; çakışan kodda yeniden deneme ve 3 denemeden sonra vazgeçme; rezerve kodun atlanması; süre sonunun tam sınırda reddedilmesi; geçersiz istekte hiç satır yazılmaması.
+  - Negatif kontrol: çakışma tespiti geçici olarak bozuldu, 5 entegrasyon testi başarısız oldu, kod geri yüklendi.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
 
 ### 2026-10-14 — Maven'dan Gradle'a geçiş
 

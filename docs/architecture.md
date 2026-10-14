@@ -89,19 +89,22 @@ Geriye küçük bir yarış kalıyor. Cache'i dolduran bir okuma, eski kaydı en
 
 ## Link oluşturma
 
-1. **URL doğrulama.**
+1. **URL doğrulama** (`TargetUrlValidator`).
    - Yalnızca `http` ve `https` şeması kabul edilir.
    - Kullanıcı bilgisi içeren URL'ler reddedilir (`https://google.com@kotu.site` tuzağı).
-   - Uzunluk en fazla 2048 karakterdir.
-   - Host bir IP adresi olamaz.
-   - `vurli.io`'ya geri dönen linkler reddedilir. Böylece döngü ve zincirleme gizleme önlenir.
+   - Boşluk, kontrol karakterleri ve ters bölü reddedilir. Tarayıcılar `\` karakterini `/` gibi yorumlar; `https://kotu.site\@google.com` tuzağı bu yüzden çalışır.
+   - Uzunluk, kodlamadan önce ve sonra en fazla 2048 karakterdir.
+   - Host bir IP adresi olamaz (onaltılık ve IPv6 biçimleri dahil). Son etiket harflerden oluşmalı, dolayısıyla `localhost` gibi tek parçalı adlar da reddedilir.
+   - Yalnızca standart portlar kabul edilir (http için 80, https için 443).
+   - `vurli.io`'ya ve alt alan adlarına giden linkler reddedilir. Böylece döngü ve zincirleme gizleme önlenir.
+   - Kabul edilen URL normalize edilerek saklanır: şema ve host küçük harfe çevrilir, Türkçe karakterli alan adları punycode'a (`xn--…`) dönüştürülür, ASCII olmayan path karakterleri kodlanır. Var olan `%` kodlamaları değiştirilmez, çünkü değiştirilirse URL'nin anlamı bozulabilir.
 2. **Güvenlik kontrolü.** URL Web Risk'e sorulur. Tehlikeli işaretlenirse link reddedilir. Servis yanıt vermezse link oluşturulur ama `safety_checked_at` boş kalır; arka plan işi birkaç dakika içinde yeniden kontrol eder ve tehlikeli çıkarsa engeller. Bu tercih kullanıcı deneyimini korur. Riski, doğrulanmış hesap şartı ve kota sınırlar. Aktif linkler haftalık olarak yeniden taranır, çünkü bir hedef sonradan zararlıya dönüşebilir.
 3. **Kota.** Hesap başına günlük link sınırı uygulanır ([A04](decisions.md#açık-sorular)).
 4. **Kod.**
-   - Özel ad verildiyse 3–50 karakter olmalı ve yalnızca harf, rakam ve tire içermeli. Ad, rezerve listede olmamalı.
-   - Özel ad yoksa 7 karakterlik rastgele kod üretilir.
+   - Özel ad verildiyse küçük harfe çevrilir (`Kafe-Menu` → `kafe-menu`). Böylece yalnızca harf büyüklüğüyle ayrışan, birbirine karıştırılabilecek iki link oluşamaz. Ad 3–50 karakter olmalı; yalnızca küçük harf, rakam ve tire içermeli; tireyle başlayıp bitmemeli; rezerve listede (`AliasPolicy`) olmamalı.
+   - Özel ad yoksa 7 karakterlik rastgele Base62 kod üretilir. Rastgele kodlar büyük-küçük harf duyarlıdır. Rezerve bir ada denk gelen kod atlanır.
    - Ardından `INSERT` yapılır. Unique ihlali olursa özel adda "bu ad alınmış" hatası döner; rastgele kodda en fazla 3 kez yeniden denenir.
-   - Kodun tekliğini veritabanı constraint'i garanti eder. "Önce kontrol et, sonra yaz" yaklaşımı eşzamanlı isteklerde çift kayda yol açar.
+   - Kodun tekliğini veritabanı constraint'i (`uk_links_code`) garanti eder. "Önce kontrol et, sonra yaz" yaklaşımı eşzamanlı isteklerde çift kayda yol açar. Constraint hatası Postgres'te transaction'ı geçersiz kıldığı için her deneme kendi transaction'ında yapılır.
 
 QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böylece hedef değişse de basılı QR geçerli kalır.
 
