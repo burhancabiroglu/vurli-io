@@ -28,12 +28,12 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K12 | Modüler monolit, tek uygulama, tek deploy | Varsayılan | Tek geliştirici ve tek sunucu için en sade yapı. Modül sınırları testle korunur ([mimari](architecture.md#modüller)) |
 | K13 | PostgreSQL, şema değişiklikleri Flyway ile | Varsayılan | Unique constraint, transaction ve JSONB desteği yeterli; tek veritabanı |
 | K14 | Redis yok; uygulama içi cache (Caffeine) | Varsayılan | Tek instance'ta Redis yalnızca işletme yükü getirir. İkinci instance gerektiğinde yeniden değerlendirilir |
-| K15 | Panel: Thymeleaf + htmx | Kesin, 2026-10-14 | Tek uygulama ve tek deploy. Ayrı frontend build'i, CORS ve token yönetimi gerekmez |
+| K15 | Panel: Thymeleaf + htmx | Değişti → K28, K29 | Tek uygulama ve tek deploy olduğu için seçilmişti |
 | K16 | Kimlik doğrulama: e-posta + şifre ve Spring Security oturumu. Oturumlar Spring Session JDBC ile veritabanında | Yöntem kesin (2026-10-14), oturum deposu varsayılan | Oturumlar veritabanında tutulursa deploy sonrası kullanıcıların oturumu kapanmaz |
 | K17 | Barındırma: tek VPS üzerinde Docker Compose ile Caddy, uygulama ve PostgreSQL | Kesin, 2026-10-14 | Aylık yaklaşık 5–10 €, şeffaf ve öğretici. Yedekleme sorumluluğu bizde ([mimari](architecture.md#dağıtım)) |
 | K18 | Yönlendirme: `302` + `Cache-Control: no-store` | Varsayılan | Hedef değiştirilebilir. Tarayıcılar `301`'i kalıcı olarak cache'ler; sonradan değişen hedef eski ziyaretçilere ulaşmaz |
 | K19 | Kısa kod: 7 karakter Base62, kriptografik rastgele | Varsayılan | 62⁷ ≈ 3,5 trilyon olasılık. Tahmin edilemeyen kodlar link taramasını zorlaştırır. Çakışmada unique hatası alınır ve yeniden denenir |
-| K20 | Kısa linkler ve tanıtım sayfası `vurli.io`'da, panel `app.vurli.io`'da | Varsayılan | Panelin oturum çerezi yalnızca `app.vurli.io`'ya gider. Kısa link sayfaları oturum çerezini hiç görmez |
+| K20 | Kısa linkler ve tanıtım sayfası `vurli.io`'da (Spring), kullanıcı paneli `app.vurli.io`'da (Next.js) | Varsayılan | Panelin oturum çerezi yalnızca `app.vurli.io`'ya gider. Kısa link sayfaları oturum çerezini hiç görmez. Yönetici panelinin host'u M3'te seçilir |
 | K21 | Her hesabın bir workspace'i var ve linkler workspace'e bağlı | Varsayılan | MVP'de takım yok, ama izolasyon sınırı baştan doğru yerde olur. Takım eklemek sonradan büyük migration gerektirmez |
 | K22 | Tıklamalar bellekteki bir kuyruktan toplu yazılır. Ham kayıt 90 gün, günlük özet süresiz tutulur | Varsayılan | Yönlendirme istatistik yazımını beklemez. Çökme anında birkaç saniyelik tıklama kaybı kabul edilir |
 | K23 | IP adresi saklanmaz. Ülke GeoIP ile bulunur ve IP atılır | Varsayılan | Kişisel veriyi en aza indirmek (GDPR) |
@@ -41,12 +41,20 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K25 | Git, GitHub ve GitHub Actions | Varsayılan | Repo M0'da açılır |
 | K26 | Testler: JUnit 5 ve Testcontainers ile gerçek PostgreSQL | Varsayılan | Unique constraint, transaction ve izolasyon davranışı sahte veritabanıyla doğrulanamaz |
 | K27 | Build aracı: Gradle Wrapper, Kotlin DSL (`build.gradle.kts`) | Kesin, 2026-10-14 | Spring Initializr'ın ve Spring Boot'un kendi varsayılanı; yeni projelerde payı artıyor. Java toolchain JDK 25'i kendisi bulur ve artımlı build hızlıdır. Wrapper jar'ı ve dağıtımı checksum ile doğrulanır. Maven'ın kurumsal dünyadaki yaygınlığı bilinçli olarak göze alındı; iki araç da bilinmeli |
+| K28 | Kullanıcı paneli Next.js (App Router), BFF olarak: tarayıcı yalnızca Next.js ile konuşur, Next.js sunucu tarafında Spring REST API'yi çağırır | Kesin, 2026-10-15 | "Spring Boot API + React/Next.js" kurumsal hedef için değerli bir yığın. Spring API internete açılmaz, tarayıcıda token tutulmaz, tek origin olduğu için CORS gerekmez. Bedeli: ikinci dil ve deploy, M2'de yaklaşık %30–50 ek süre |
+| K29 | Kimlik, yetki ve verinin tek sahibi Spring. Next.js oturum çerezini Spring'e iletir ve iş kuralı içermez | Kesin, 2026-10-15 | Güvenlik mantığı tek yerde, test edilen Java tarafında kalır. "API'yi gizlemek" tek başına güvenlik sayılmaz: Next.js'in uç noktaları da dışa açıktır, yetkiyi yine Spring denetler |
+| K30 | Yönetici paneli (cPanel benzeri) Spring içinde Thymeleaf ile | Kesin, 2026-10-15 | Yalnızca bizim kullandığımız iç araç; ayrı uygulamaya gerek yok ve kullanıcı paneliyle aynı saldırı yüzeyini paylaşmaz. M3'te |
+| K31 | Kullanıcı paneli arayüzü: Tailwind CSS + shadcn/ui | Kesin, 2026-10-15 | Next.js ekosisteminin fiili standardı; erişilebilir bileşenler (Radix) hazır gelir |
+| K32 | E-posta SMTP ile gönderilir; yerelde Mailpit yakalar, gerçek sağlayıcı M4'te bağlanır | Kesin, 2026-10-15 | Bütün sağlayıcılar SMTP desteklediği için kod sağlayıcıdan bağımsız kalır; geliştirmede gerçek e-posta gönderilmez |
+| K33 | Panel Türkçe ve İngilizce; dil tarayıcıdan seçilir, metinler baştan mesaj dosyalarında | Kesin, 2026-10-15 | Sonradan çok dillilik eklemek her ekranı elden geçirmeyi gerektirir. Doğrulama ve şifre sıfırlama e-postaları da iki dilli |
+| K34 | E-postasını doğrulamamış kullanıcı giriş yapabilir ama link oluşturamaz | Kesin, 2026-10-15 | "E-posta gelmedi" durumunda kullanıcı takılı kalmaz, panelden yeniden gönderebilir; K04'teki kötüye kullanım koruması korunur |
+| K35 | Monorepo: `backend/` (Spring) ve `frontend/` (Next.js); kökte belgeler, Compose ve CI | Varsayılan, 2026-10-15 | Her aracın kendi klasörü olur; CI işleri yol filtresiyle ayrışır, Docker build bağlamları ayrı kalır. Taşıma tek commit, git geçmişi korunur |
 
 ## Açık sorular
 
 | ID | Soru | Ne zaman gerekli | Öneri |
 |---|---|---|---|
-| A01 | E-posta gönderim servisi | M2 | Postmark veya Resend: kurulumu basit, ücretsiz katmanı başlangıç için yeterli |
+| A01 | E-posta gönderim servisi | M4 (kod SMTP ile sağlayıcıdan bağımsız, bkz. K32) | Postmark veya Resend: kurulumu basit, ücretsiz katmanı başlangıç için yeterli |
 | A02 | VPS sağlayıcısı ve bölgesi | M4 | Hetzner, AB bölgesi (Almanya veya Finlandiya) |
 | A03 | Gelir modeli | MVP sonrası, kullanıcı geri bildirimiyle | İlk aday freemium abonelik: ücretsiz plan limitli, ücretli planda özel alan adı ve gelişmiş istatistik |
 | A04 | Kota ve hız sınırları | M3 | Yeni hesaba günde 50 link, ileride güvenilir hesaplar için artırılır |

@@ -57,19 +57,23 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 **Test:** URL doğrulayıcı geniş bir sınır değer setiyle test edilir: Unicode ve punycode host'lar, encode edilmiş karakterler, IPv6, kullanıcı bilgisi ve aşırı uzun URL'ler.
 
-## 5. Panelde XSS ve CSRF
+## 5. Panelde XSS, CSRF ve BFF güven sınırı
 
 **Önlemler:**
 
-- Thymeleaf varsayılan olarak escape eder. `th:utext` kullanılmaz.
-- CSP ile script'ler yalnızca kendi origin'imizden yüklenir; inline script yoktur.
-- Spring Security CSRF koruması açıktır.
+- React ve Thymeleaf varsayılan olarak escape eder. `dangerouslySetInnerHTML` ve `th:utext` kullanılmaz. Kullanıcının girdiği hedef URL'ler panelde yalnızca metin olarak gösterilir; tıklanabilir linkler `rel="noopener noreferrer"` taşır.
+- CSP ile script'ler yalnızca kendi origin'imizden yüklenir; Next.js'in gerektirdiği inline script'ler nonce ile izin alır.
+- Kullanıcı panelinde CSRF koruması Next.js katmanındadır: `SameSite=Lax` çerez ve değişiklik isteklerinde `Origin` kontrolü. Yönetici panelinde Spring Security CSRF koruması açıktır.
 - Oturum çerezi host-only, `Secure`, `HttpOnly` ve `SameSite=Lax`'tır. Kısa link alan adı (`vurli.io`) oturum çerezini hiç görmez.
+- **Spring API internete açık değildir.** Yalnızca iç ağdan, Next.js'ten gelen istekleri kabul eder. Bu ek bir savunma katmanıdır, tek başına güvenlik değildir: Next.js'in uç noktaları da dışa açık olduğu için her yetki kararı Spring'de verilir.
+- Next.js tarayıcıdan gelen çerezi yalnızca Spring'e iletir; başka bir adrese istek atarken çerez taşımaz. Spring'in adresi yapılandırmadan gelir, istekten alınmaz (SSRF'ye karşı).
 
 **Testler:**
 
 - Hedef URL'ye veya özel ada yerleştirilen bir script panelde çalışmaz.
-- CSRF token'ı olmayan bir `POST` isteği `403` alır.
+- Başka bir origin'den gelen değişiklik isteği reddedilir.
+- Spring API'nin portu Compose ağı dışından erişilemez (canlı ortam kontrol listesi, M4).
+- Başka bir hesabın oturum çereziyle yapılan istekler IDOR testleriyle aynı şekilde `404` alır.
 
 ## 6. Kaynak tüketimi
 

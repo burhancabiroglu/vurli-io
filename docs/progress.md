@@ -4,20 +4,33 @@ Son güncelleme: 2026-10-15
 
 ## Şu an
 
-**M1 (link çekirdeği) tamamlandı.** Link HTTP üzerinden oluşturulup yönlendirilebiliyor ve bütün testler geçiyor. M1 üç dilimde yapıldı:
-
-1. Link oluşturma (commit `e7db422`, CI yeşil)
-2. Yönlendirme (commit `1fd1286`, CI yeşil)
-3. Yönetim ve dev API (aşağıdaki kayıt)
-
-Sıradaki kilometre taşı: **M2, hesaplar ve panel** ([yol haritası](roadmap.md)).
+M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`, CI yeşil. **M2 (hesaplar ve kullanıcı paneli) planlandı**, kod henüz yok. Kullanıcı paneli Next.js BFF, yönetici paneli Spring + Thymeleaf olacak ([K28–K35](decisions.md#teknik)). M2 dört dilime bölündü ([yol haritası](roadmap.md)).
 
 ## Sıradaki adım
 
-1. M2'yi dilimlere böl. Önerilen ilk dilim: `users` tablosu, kayıt ve e-posta doğrulama. E-posta gönderimi için sağlayıcı seçimi ([A01](decisions.md#açık-sorular)) bu dilimden önce gerekiyor; yerelde e-postaları yakalamak için Mailpit gibi bir test sunucusu kullanılabilir.
-2. M2'de kaldırılacaklar: `DevSecurityConfiguration`, `DevLinkApiController`, `db/dev` tohum verisi ve `formLogin` varsayılanı.
+1. M2 dilim 1, monorepo ve altyapı:
+   - Spring projesini `git mv` ile `backend/`'e taşı.
+   - `frontend/` altında Next.js'i kur (App Router, TypeScript, Tailwind, shadcn/ui).
+   - CI'ı yol filtreli iki işe ayır.
+   - Compose'a Mailpit ekle.
+   - README, AGENTS.md ve Dependabot yollarını güncelle.
+2. Ardından dilim 2: hesaplar (Spring). Dev API ve `DevSecurityConfiguration` bu dilimde kaldırılır.
 
 ## Kayıt
+
+### 2026-10-15 — M2 kararları
+
+- GitHub reposu silinip boş olarak yeniden oluşturuldu ve 6 commit aynen push edildi (CI yeşil, Contributors yalnızca kullanıcı).
+- Kararlar ([decisions.md](decisions.md)):
+  - Kullanıcı paneli Next.js BFF; kimlik, yetki ve veri Spring'de (K28, K29).
+  - Yönetici paneli Spring + Thymeleaf (K30).
+  - Arayüz Tailwind + shadcn/ui (K31).
+  - E-posta SMTP ile; yerelde Mailpit, sağlayıcı M4'te (K32).
+  - Panel Türkçe + İngilizce (K33).
+  - Doğrulanmamış kullanıcı giriş yapar ama link oluşturamaz (K34).
+  - Monorepo `backend/` + `frontend/` (K35, önerildi).
+- Kullanıcının sorusu üzerine: Next.js'i Spring'in `resources` klasörüne koymak yalnızca statik dışa aktarımla mümkün. O durumda BFF'nin sunucu tarafı kaybolur, bu yüzden Next.js ayrı bir süreç olarak çalışacak.
+- Mimari, güvenlik (BFF güven sınırı, CSRF, CSP) ve yol haritası (M2 55–85 saat, toplam 145–215 saat) güncellendi.
 
 ### 2026-10-15 — CI hatası: Linux'ta zaman hassasiyeti
 

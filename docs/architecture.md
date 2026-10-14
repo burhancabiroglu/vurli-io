@@ -1,23 +1,25 @@
 # Mimari
 
-Bu belge planlanan yapıyı anlatır; henüz kod yok. Kararların gerekçeleri [decisions.md](decisions.md) içinde.
+Bu belge sistemin yapısını anlatır. M1'de anlatılanlar (link, yönlendirme, cache) uygulandı; panel, hesaplar ve sonrası henüz plan. Güncel durum [progress.md](progress.md), kararların gerekçeleri [decisions.md](decisions.md) içinde.
 
 ## Genel bakış
 
-Tek bir Spring Boot uygulaması ve tek bir PostgreSQL veritabanı. Önlerinde TLS'i yöneten Caddy var. Hepsi tek VPS üzerinde Docker Compose ile çalışır.
+Bir Spring Boot uygulaması, kullanıcı paneli için bir Next.js uygulaması ve bir PostgreSQL veritabanı. Önlerinde TLS'i yöneten Caddy var. Hepsi tek VPS üzerinde Docker Compose ile çalışır. Kod monorepo'da: `backend/` (Spring) ve `frontend/` (Next.js).
 
 ```
-                 HTTPS (Caddy, otomatik Let's Encrypt)
-İnternet ──────────────────────────────────────────┐
-                                                   ▼
-┌──────────────────────────── VPS ─────────────────────────────┐
-│  Caddy ──► Spring Boot uygulaması ──► PostgreSQL               │
-│              ├─ vurli.io/{kod}   → yönlendirme                 │
-│              ├─ vurli.io         → tanıtım, kötüye kullanım     │
-│              └─ app.vurli.io     → panel                       │
-└───────────────────────────────────────────────────────────────┘
-Dış servisler: e-posta gönderimi, Google Web Risk, yedek deposu
+                    HTTPS (Caddy, otomatik Let's Encrypt)
+İnternet ─────────────────────────────────────────────────┐
+                                                          ▼
+┌─────────────────────────────── VPS ────────────────────────────────┐
+│  Caddy ─┬─ vurli.io/{kod}, vurli.io ──► Spring Boot ──► PostgreSQL   │
+│         │   (yönlendirme, tanıtım)        ▲                          │
+│         └─ app.vurli.io ──► Next.js ──────┘ iç ağ: /api/v1          │
+│                              (BFF)          (internete açık değil)   │
+└────────────────────────────────────────────────────────────────────┘
+Dış servisler: e-posta (SMTP), Google Web Risk, yedek deposu
 ```
+
+Yönlendirme Node.js'ten geçmez; kısa linkler doğrudan Spring'e gider. Next.js veritabanına hiç bağlanmaz.
 
 ## Modüller
 
@@ -31,7 +33,7 @@ Kök paket `io.vurli`. Her modül kendi tablolarının sahibidir. Başka bir mod
 | `analytics` | Tıklama kaydı, bot ayıklama, günlük özetler, istatistik sorguları |
 | `abuse` | URL güvenlik kontrolü, bildirimler, yönetici engellemesi, denetim kaydı |
 
-`redirect` yalnızca iki şey kullanır: `link` modülünün okuma arayüzü ve `analytics` modülünün tıklama kayıt arayüzü. Panel controller'ları ve Thymeleaf şablonları ilgili modülün `web` alt paketinde durur.
+`redirect` yalnızca iki şey kullanır: `link` modülünün okuma arayüzü ve `analytics` modülünün tıklama kayıt arayüzü. Next.js'in çağırdığı REST controller'ları ve yönetici panelinin Thymeleaf şablonları ilgili modülün `web` alt paketinde durur.
 
 ## Veri modeli
 
@@ -130,16 +132,23 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 - Ülke MaxMind GeoLite2 veritabanından bulunur ve IP hemen atılır. Referrer'dan yalnızca host saklanır.
 - Gece işi önceki günü `link_daily_stats` tablosuna özetler ve 90 günden eski `click_events` kayıtlarını siler.
 
-## Panel
+## Kullanıcı paneli (Next.js BFF)
 
-`app.vurli.io` üzerinde Thymeleaf ve htmx ile çalışır.
+`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; metinler mesaj dosyalarında.
 
-- Spring Security form girişi kullanılır ve CSRF koruması açıktır. htmx istekleri CSRF token'ını başlıkta gönderir.
-- Oturum çerezi `Secure`, `HttpOnly`, `SameSite=Lax` ve host-only'dir (domain belirtilmez).
+- **Kim neye sahip:** kimlik, yetki ve verinin tek sahibi Spring'dir. Next.js yalnızca ekranı üretir ve Spring'in `/api/v1` uç noktalarını sunucu tarafında çağırır; iş kuralı içermez, veritabanına bağlanmaz.
+- **Oturum:** giriş isteğini Next.js Spring'e iletir. Spring oturumu açar (Spring Session JDBC) ve oturum çerezini döndürür; Next.js bu çerezi tarayıcıya aynen geçirir. Sonraki her istekte Next.js tarayıcıdan gelen çerezi Spring'e iletir. Tarayıcıda JavaScript'in okuyabildiği bir token yoktur.
+- **Çerez:** `Secure`, `HttpOnly`, `SameSite=Lax`, host-only (`app.vurli.io`). Kısa link alan adı (`vurli.io`) bu çerezi hiç görmez.
+- **CSRF:** tarayıcı Spring'e hiç ulaşamadığı için koruma Next.js katmanındadır: `SameSite` çerez ve değişiklik isteklerinde `Origin` kontrolü (server action'larda yerleşik). Spring tarafında API, yalnızca iç ağdan gelen istekleri kabul eder.
+- **Yetki:** Next.js'in uç noktaları da dışa açık bir API'dir. Bu yüzden her yetki kararı Spring'de verilir; Next.js'te gizlenen bir buton güvenlik önlemi sayılmaz.
+
+## Yönetici paneli
+
+Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç: link ve hesap arama, engelleme, kötüye kullanım bildirimleri, denetim kaydı. Yalnızca `ADMIN` rolü; iki adımlı doğrulama zorunlu. Host'u ve ayrıntıları M3'te belirlenir.
 
 ## Dağıtım
 
-- **Servisler:** Docker Compose ile `caddy`, `app` ve `postgres`.
+- **Servisler:** Docker Compose ile `caddy`, `backend` (Spring), `frontend` (Next.js) ve `postgres`. Yerel geliştirmede ayrıca e-postaları yakalayan Mailpit.
 - **Deploy:** GitHub Actions image'ı build eder ve GHCR'a gönderir; sunucu yeni image'ı çeker ve yeniden başlatır. MVP'de birkaç saniyelik kesinti kabul edilir.
 - **Yedekleme:** her gün `pg_dump` alınır ve sunucu dışındaki bir depoya (S3 uyumlu veya Storage Box) gönderilir. Yedekler 30 gün saklanır. Geri yükleme ayda bir boş bir ortamda denenir; denenmemiş yedek, yedek sayılmaz.
 - **İzleme:** dışarıdan uptime kontrolü yapılır. Spring Actuator health endpoint'i yalnızca içeriden erişilebilir. Uygulama logları JSON biçiminde tutulur.

@@ -25,18 +25,22 @@ Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba ta
 
 **Bitti sayılır:** HTTP isteğiyle link oluşturulup yönlendirme yapılabiliyor ve bütün testler geçiyor. Bu, mülakatta gösterilebilecek ilk dilim.
 
-## M2 — Hesaplar ve panel (40–60 saat)
+## M2 — Hesaplar ve kullanıcı paneli (55–85 saat)
 
-- Kayıt, e-posta doğrulama, giriş ve çıkış, şifre sıfırlama (e-posta servisi seçimi: [A01](decisions.md#açık-sorular))
-- Workspace ve izolasyon; iki hesaplı IDOR testleri
-- Panel: link listesi, oluşturma, düzenleme, kapatma, silme, QR indirme
+Kullanıcı paneli Next.js BFF olarak yapılıyor ([K28](decisions.md#teknik)); ilk tahmine göre yaklaşık %30–50 ek süre. Dilimler:
 
-**Bitti sayılır:** yeni bir kullanıcı kayıttan QR indirmeye kadar bütün akışı tarayıcıda tamamlayabiliyor.
+1. **Monorepo ve altyapı:** Spring `backend/`'e taşınır, Next.js `frontend/` olarak kurulur. CI iki işe ayrılır; Compose'a Mailpit eklenir.
+2. **Hesaplar (Spring):** `users` tablosu, kayıt, Argon2 şifre hash'i, e-posta doğrulama ve şifre sıfırlama token'ları, iki dilli e-postalar, giriş ve çıkış (JSON API, Spring Session JDBC). Kayıtta kişisel workspace oluşur. Dev API ve geçici güvenlik ayarı kaldırılır.
+3. **Panel iskeleti (Next.js):** App Router, Tailwind + shadcn/ui, Türkçe/İngilizce, Spring'e çerez ileten BFF katmanı; kayıt, giriş, doğrulama ve şifre sıfırlama ekranları.
+4. **Link ekranları:** liste, oluşturma, düzenleme, kapatma, silme, QR indirme; iki hesaplı IDOR testleri. `Host` başlığı kontrolü.
+
+**Bitti sayılır:** yeni bir kullanıcı kayıttan QR indirmeye kadar bütün akışı tarayıcıda tamamlayabiliyor ve iki hesap birbirinin verisine erişemiyor.
 
 ## M3 — İstatistik ve kötüye kullanım (35–50 saat)
 
 - Tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler
-- Web Risk entegrasyonu, periyodik tarama, bildirim formu, yönetici engellemesi, denetim kaydı
+- Web Risk entegrasyonu, periyodik tarama, bildirim formu, denetim kaydı
+- Yönetici paneli (Spring + Thymeleaf, cPanel benzeri): link ve hesap arama, engelleme
 - Hız sınırları ve kotalar
 - İlk yük testi (k6 veya Gatling): yönlendirme gecikmesi ve kapasitesi ölçülür
 
@@ -53,7 +57,7 @@ Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba ta
 
 ## Toplam
 
-130–190 saat. Haftada 10 saatle yaklaşık 3–5 ay, haftada 5 saatle yaklaşık 6–9 ay.
+145–215 saat (M2'nin Next.js ile büyümesi dahil). Haftada 10 saatle yaklaşık 4–5 ay, haftada 5 saatle yaklaşık 7–10 ay.
 
 ## MVP sonrası
 
