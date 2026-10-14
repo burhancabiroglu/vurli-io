@@ -1,0 +1,17 @@
+# Yalnızca yerel geliştirme içindir. Uygulama başlarken Spring Boot bu dosyayı
+# otomatik olarak çalıştırır (spring-boot-docker-compose).
+services:
+  postgres:
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=vurli'
+      - 'POSTGRES_USER=vurli'
+      - 'POSTGRES_PASSWORD=vurli-dev'
+    ports:
+      # Rastgele bir host portu, yalnızca localhost'tan erişilebilir.
+      - '127.0.0.1::5432'
+    volumes:
+      - 'postgres-data:/var/lib/postgresql'
+
+volumes:
+  postgres-data:
