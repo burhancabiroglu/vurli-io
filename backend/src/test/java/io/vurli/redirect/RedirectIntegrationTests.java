@@ -4,7 +4,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
@@ -161,13 +160,16 @@ class RedirectIntegrationTests {
 	}
 
 	@Test
-	void otherPathsRequireLogin() throws Exception {
-		this.mvc.perform(get("/api/links")).andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+	void unknownPathsAreDenied() throws Exception {
+		this.mvc.perform(get("/some/other/path")).andExpect(status().isForbidden());
+		this.mvc.perform(get("/dev/api/links")).andExpect(status().isForbidden());
 	}
 
 	@Test
-	void devApiDoesNotExistOutsideTheDevProfile() throws Exception {
-		this.mvc.perform(get("/dev/api/links")).andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+	void apiRequiresASessionAndNeverRedirects() throws Exception {
+		this.mvc.perform(get("/api/v1/links"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
 	}
 
 	private LinkView create(String targetUrl) {

@@ -6,23 +6,54 @@ Son güncelleme: 2026-10-15
 
 M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`. **M2 (hesaplar ve kullanıcı paneli) devam ediyor**:
 
-1. Monorepo ve altyapı: tamamlandı (aşağıdaki kayıt).
-2. Hesaplar (Spring): sırada.
-3. Panel iskeleti (Next.js).
+1. Monorepo ve altyapı: tamamlandı (`d3b5c10`, CI yeşil).
+2. Hesaplar (Spring): tamamlandı (aşağıdaki kayıt).
+3. Panel iskeleti (Next.js): sırada.
 4. Link ekranları.
 
 ## Sıradaki adım
 
-1. Dilim 1 commit'inin Backend ve Frontend CI sonuçlarını kontrol et.
-2. Dilim 2, hesaplar (Spring):
-   - `V3__create_users.sql` (`users`, `email_tokens`; `workspaces.owner_id`)
-   - Argon2 ile kayıt, kayıtta kişisel workspace
-   - Mailpit'e giden iki dilli doğrulama e-postası
-   - JSON giriş/çıkış ve Spring Session JDBC
+1. Dilim 2 commit'inin Backend CI sonucunu kontrol et.
+2. Dilim 3, panel iskeleti (Next.js):
+   - Türkçe/İngilizce (next-intl)
+   - Spring'e çerez ve `X-Vurli-Client` başlığı ileten sunucu tarafı istemci
+   - Kayıt, giriş, `verify-email` (token'ı `#token=` fragment'ından okuyup POST eden sayfa), şifre sıfırlama ekranları
 
-   İlk test: aynı e-postayla eşzamanlı iki kayıttan yalnızca birinin başarılı olması ve yanıtların hesabın varlığını sızdırmaması.
+   İlk iş: Next.js 16'nın `node_modules/next/dist/docs/` rehberini okumak (`frontend/AGENTS.md`).
 
 ## Kayıt
+
+### 2026-10-15 — M2 dilim 2: hesaplar (Spring)
+
+- Şema: `V3__create_users.sql` (`users`, `email_tokens`, `workspaces.owner_id`) ve `V4__create_spring_session.sql` (spring-session-jdbc 4.1.1'in resmi PostgreSQL şeması, değiştirilmeden).
+- `account` modülü:
+  - `AccountManagement`: kayıt, doğrulama, yeniden gönderme, şifre sıfırlama isteği ve onayı.
+  - `AuthController` (`/api/v1/auth`): register, verify-email, verification-email, login, logout, me, password-reset, password-reset/confirm.
+  - Kimlik doğrulama `AuthenticationManager` ve Argon2id ile.
+- Dev API, `DevSecurityConfiguration` ve `db/dev` tohum verisi kaldırıldı. Yerine oturum isteyen `LinkApiController` (`/api/v1/links`) geldi; doğrulanmamış hesap link oluşturamıyor (`email_not_verified`).
+- Güvenlik:
+  - İki zincir var: `/api/**` oturum ister ve 401 döner; geri kalanında yalnızca kısa linkler ve health açık, diğer her şey reddediliyor.
+  - CSRF için `X-Vurli-Client` başlığı zorunlu.
+  - Hata dispatch'lerine izin veriliyor, böylece 500 yanıtları 403'e dönüşmüyor.
+- Kararlar: K36 (oturum 24 saat), K37 (API CSRF yaklaşımı), K38 (token URL fragment'ında); hepsi varsayılan.
+- Yol üstünde bulunan sorunlar:
+  - **Oturum çerezi ayarları uygulanmıyordu:** `server.servlet.session.cookie.*` ayarları MockMvc testlerinde Spring Session'a hiç ulaşmadı; çerez `SESSION` adıyla ve bayraksız geldi. Sebep, Spring Boot 4'ün bu ayarları gömülü sunucu yapılandırmasıyla bağlantılı uygulaması. Güvenlik açısından kritik olduğu için çerez artık `SessionCookieConfiguration`'da açıkça tanımlı: `VURLI_SESSION`, `HttpOnly`, `SameSite=Lax`, `Secure` (dev profilinde kapalı).
+  - **E-posta göndericisi oluşmuyordu:** Spring Boot `JavaMailSender`'ı yalnızca `spring.mail.host` varsa oluşturuyor; bu koşul testlerin dinamik ayarlarından önce değerlendiriliyor. Ana ayarlara varsayılan host eklendi.
+  - **Yerel geliştirme veritabanı:** kaldırılan `R__dev_workspace.sql` yerelde uygulanmış göründüğü için Flyway doğrulaması başarısız oldu. Veritabanını silmek yerine `flyway_schema_history`'den yalnızca o satır silindi. Yalnızca bu bilgisayardaki dev veritabanını ilgilendiriyor.
+- Doğrulama (`./gradlew build`): 175 test, 0 başarısız.
+  - `AccountManagementIntegrationTests` (13), gerçek Mailpit konteyneriyle:
+    - Türkçe ve İngilizce e-posta seçimi
+    - Token'ın tek kullanımlık olması; süresi dolmuş veya bozuk token'ın reddi; yalnızca SHA-256'nın saklanması
+    - Kayıtlı adrese ikinci kayıtta hesabın değişmemesi ve sahibine bildirim gitmesi
+    - Aynı adrese 8 paralel kayıttan tek hesap çıkması
+    - Yeniden gönderme sınırı; sıfırlamanın eski linkleri geçersiz kılması
+    - Zayıf şifre ve geçersiz adres
+  - `AuthApiTests` (11): yeni ve kayıtlı adrese aynı yanıt; çerez bayrakları; yanlış şifre ile bilinmeyen adresin aynı 401'i alması; doğrulanmamış hesabın girebilmesi; tekrar girişte oturum kimliğinin yenilenmesi; çıkış; şifre sıfırlamada her yerde oturum kapanması; 401 yerine yönlendirme olmaması; başlık filtresi; hata kodları.
+  - `LinkApiTests` (5): oluştur, değiştir, sil ve yönlendirme; doğrulanmamış hesap 403; iki gerçek hesapla IDOR (okuma, değiştirme, kapatma, silme, liste); oturumsuz 401; geçersiz hedef 422.
+  - Negatif kontroller: oturum kimliği yenileme, sıfırlamada oturum silme, token'ın tek kullanımlık olması ve başlık filtresi sırayla kaldırıldı; her seferinde ilgili test başarısız oldu, kod geri yüklendi.
+  - Gerçek sunucuda (`bootRun` ve `curl`): kayıt 202 → Mailpit'te Türkçe e-posta (`#token=` linkiyle) → giriş ve çerez bayrakları → doğrulanmamışken link 403 → doğrulama 204, aynı token tekrar 400 → `/me` yeniden giriş gerekmeden `emailVerified: true` → link 201 → ziyaret 302 → çıkış 204, sonra `/me` 401. Mailpit kapalıyken kayıt yine 202 döndü ve log'a yalnızca kullanıcı kimliği yazıldı; e-posta hatasının yanıtı değiştirmediği böylece görüldü.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular: giriş, kayıt ve şifre sıfırlamada hız sınırı M3'te. O zamana kadar kayıt uç noktası başkalarının adreslerine e-posta göndermek için kötüye kullanılabilir; aynı adrese gönderim yalnızca dakikada bir ile sınırlı.
 
 ### 2026-10-15 — M2 dilim 1: monorepo ve altyapı
 

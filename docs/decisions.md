@@ -49,6 +49,9 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K33 | Panel Türkçe ve İngilizce; dil tarayıcıdan seçilir, metinler baştan mesaj dosyalarında | Kesin, 2026-10-15 | Sonradan çok dillilik eklemek her ekranı elden geçirmeyi gerektirir. Doğrulama ve şifre sıfırlama e-postaları da iki dilli |
 | K34 | E-postasını doğrulamamış kullanıcı giriş yapabilir ama link oluşturamaz | Kesin, 2026-10-15 | "E-posta gelmedi" durumunda kullanıcı takılı kalmaz, panelden yeniden gönderebilir; K04'teki kötüye kullanım koruması korunur |
 | K35 | Monorepo: `backend/` (Spring) ve `frontend/` (Next.js); kökte belgeler, Compose ve CI | Varsayılan, 2026-10-15 | Her aracın kendi klasörü olur; CI işleri yol filtresiyle ayrışır, Docker build bağlamları ayrı kalır. Taşıma tek commit, git geçmişi korunur |
+| K36 | Oturum 24 saat hareketsizlikte sona erer | Varsayılan, 2026-10-15 | Panel günlük kullanılır; daha uzun süre çalınan bir çerezin değerini artırır. "Beni hatırla" istenirse ayrıca tasarlanır |
+| K37 | Spring API'de CSRF: token yerine zorunlu `X-Vurli-Client` başlığı + `SameSite=Lax` çerez | Varsayılan, 2026-10-15 | API'nin tek istemcisi BFF; token tabanlı CSRF'i Next.js üzerinden taşımak karmaşık. Özel başlık tarayıcıdan başka bir siteye CORS'suz eklenemez (OWASP) |
+| K38 | E-posta token'ları linkte URL fragment'ında (`#token=`) | Varsayılan, 2026-10-15 | Fragment sunucuya gönderilmez: token erişim loglarına, proxy'lere ve `Referer` başlığına düşmez. Next.js sayfası token'ı okuyup POST ile gönderir |
 
 ## Açık sorular
 

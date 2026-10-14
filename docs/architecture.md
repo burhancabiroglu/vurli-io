@@ -38,14 +38,14 @@ Kök paket `io.vurli`. Her modül kendi tablolarının sahibidir. Başka bir mod
 ## Veri modeli
 
 ```
-users             id, email (unique, küçük harf), password_hash, email_verified_at,
-                  role (USER | ADMIN), created_at
+users             id, email (unique, küçük harf), password_hash ({argon2}…), email_verified_at,
+                  locale (tr | en), role (USER | ADMIN), created_at, updated_at
 workspaces        id, name, owner_id → users, created_at
 links             id, workspace_id → workspaces, code (unique), target_url,
                   status (ACTIVE | DISABLED | BLOCKED), expires_at, deleted_at,
                   safety_checked_at, version, created_by → users, created_at, updated_at
-email_tokens      id, user_id → users, purpose (VERIFY | RESET), token_hash,
-                  expires_at, used_at
+email_tokens      id, user_id → users, purpose (VERIFY_EMAIL | RESET_PASSWORD),
+                  token_hash (SHA-256, unique), expires_at, used_at, created_at
 click_events      id, link_id, occurred_at, referrer_host, country, device_type
 link_daily_stats  link_id, day, clicks, by_referrer (jsonb), by_country (jsonb),
                   by_device (jsonb)                         PK (link_id, day)
@@ -53,7 +53,7 @@ abuse_reports     id, link_id, reason, reporter_email (opsiyonel), status, creat
 audit_log         id, actor_id, action, target_type, target_id, details (jsonb), created_at
 ```
 
-Spring Session JDBC kendi oturum tablolarını ayrıca oluşturur.
+Spring Session JDBC'nin tabloları (`spring_session`, `spring_session_attributes`) V4 migration'ında; şemayı Spring değil Flyway yönetir. `workspaces.owner_id`, hesaplardan önce oluşturulmuş satırlar için boş olabilir; her yeni workspace'in sahibi var. `links.created_by` henüz yok.
 
 Modeldeki önemli tercihler:
 
@@ -139,8 +139,19 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 - **Kim neye sahip:** kimlik, yetki ve verinin tek sahibi Spring'dir. Next.js yalnızca ekranı üretir ve Spring'in `/api/v1` uç noktalarını sunucu tarafında çağırır; iş kuralı içermez, veritabanına bağlanmaz.
 - **Oturum:** giriş isteğini Next.js Spring'e iletir. Spring oturumu açar (Spring Session JDBC) ve oturum çerezini döndürür; Next.js bu çerezi tarayıcıya aynen geçirir. Sonraki her istekte Next.js tarayıcıdan gelen çerezi Spring'e iletir. Tarayıcıda JavaScript'in okuyabildiği bir token yoktur.
 - **Çerez:** `Secure`, `HttpOnly`, `SameSite=Lax`, host-only (`app.vurli.io`). Kısa link alan adı (`vurli.io`) bu çerezi hiç görmez.
-- **CSRF:** tarayıcı Spring'e hiç ulaşamadığı için koruma Next.js katmanındadır: `SameSite` çerez ve değişiklik isteklerinde `Origin` kontrolü (server action'larda yerleşik). Spring tarafında API, yalnızca iç ağdan gelen istekleri kabul eder.
+- **CSRF:** iki katman. Next.js'te `SameSite` çerez ve değişiklik isteklerinde `Origin` kontrolü (server action'larda yerleşik). Spring API'de ise token tabanlı CSRF yerine her değişiklik isteğinde `X-Vurli-Client` başlığı zorunludur (`ClientHeaderFilter`). Başka bir sitenin formu veya linki özel başlık ekleyemez; script'i de CORS ön kontrolü olmadan ekleyemez ve API hiçbir origin'e CORS izni vermez. Spring API ayrıca yalnızca iç ağdan erişilebilir olacak (M4).
 - **Yetki:** Next.js'in uç noktaları da dışa açık bir API'dir. Bu yüzden her yetki kararı Spring'de verilir; Next.js'te gizlenen bir buton güvenlik önlemi sayılmaz.
+
+## Hesaplar
+
+`account` modülü; uç noktalar `/api/v1/auth` altında. Uygulandı (M2 dilim 2).
+
+- **Kayıt:** e-posta küçük harfe çevrilir, şifre en az 10, en fazla 128 karakter (NIST: kompozisyon kuralı yok). Şifre Argon2id ile hash'lenir (OWASP asgarisi: 19 MiB, 2 tur). Hesap, kişisel workspace ve doğrulama token'ı tek transaction'da oluşur. Aynı adrese eşzamanlı kayıtlarda tekliği `uk_users_email` sağlar.
+- **Hesap sızdırmama:** kayıt ve şifre sıfırlama isteği her durumda 202 döner. Kayıtlı adrese ikinci kayıt denemesinde sahibine "zaten hesabın var" e-postası (doğrulanmamışsa yeni doğrulama e-postası) gider. Şifre her durumda hash'lenir, böylece yanıt süresi de fark etmez. Yanlış şifre ile bilinmeyen adres aynı 401'i alır.
+- **Token'lar:** 32 rastgele bayt (Base64url); veritabanında yalnızca SHA-256'sı. Tüketme tek bir `UPDATE … RETURNING` ile yapıldığı için aynı token iki kez kullanılamaz. Doğrulama 24 saat, sıfırlama 1 saat geçerli. E-postadaki link token'ı URL fragment'ında (`#token=`) taşır; fragment sunucuya gönderilmediği için erişim loglarına ve `Referer` başlığına düşmez.
+- **E-posta:** düz metin, kullanıcının diline göre (`messages*.properties`). Gönderim hatası yanıtı değiştirmez (hangi dalın çalıştığını belli etmemek için); log'a yalnızca kullanıcı kimliği yazılır. Yeniden gönderme ve sıfırlama dakikada bir ile sınırlı.
+- **Oturum:** Spring Session JDBC, 24 saat hareketsizlikte sona erer. Girişte oturum kimliği değişir (session fixation). Şifre sıfırlanınca kullanıcının bütün oturumları silinir. Çerez `SessionCookieConfiguration`'da kodda tanımlı.
+- **Doğrulanmamış hesap** giriş yapabilir ama link oluşturamaz (`email_not_verified`, 403). Doğrulama durumu oturumdan değil veritabanından okunur, bu yüzden yeniden giriş gerekmez.
 
 ## Yönetici paneli
 

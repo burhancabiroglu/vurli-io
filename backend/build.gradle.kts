@@ -28,8 +28,12 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
+	implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	implementation("com.github.ben-manes.caffeine:caffeine")
+	// Argon2 password hashing in Spring Security needs BouncyCastle.
+	implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 	implementation("org.springframework.modulith:spring-modulith-starter-core")
 	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")

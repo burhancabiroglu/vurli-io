@@ -37,17 +37,37 @@ Yerelde çalıştır. Spring Boot kökteki `compose.yaml` ile PostgreSQL ve Mail
 cd backend && ./gradlew bootRun
 ```
 
-`bootRun` uygulamayı `dev` profiliyle açar. Giriş sistemi gelene kadar (M2) linkler, yalnızca bu profilde var olan bir JSON API ile denenebilir:
+`bootRun` uygulamayı `dev` profiliyle açar. Panel ekranları gelene kadar (M2 dilim 3) API `curl` ile denenebilir. Değişiklik isteklerinde `X-Vurli-Client` başlığı zorunlu.
+
+Kayıt ol; doğrulama e-postası http://localhost:8025 adresindeki Mailpit'e düşer:
 
 ```bash
-curl -s -X POST localhost:8080/dev/api/links -H 'Content-Type: application/json' -d '{"targetUrl":"https://example.com","alias":"deneme"}'
+curl -i -X POST localhost:8080/api/v1/auth/register -H 'X-Vurli-Client: curl' -H 'Content-Type: application/json' -d '{"email":"ben@example.com","password":"en az on karakter"}'
+```
+
+E-postadaki linkin `#token=` sonrasını doğrulamaya gönder:
+
+```bash
+curl -i -X POST localhost:8080/api/v1/auth/verify-email -H 'X-Vurli-Client: curl' -H 'Content-Type: application/json' -d '{"token":"<e-postadaki token>"}'
+```
+
+Giriş yap (oturum çerezi `cookies.txt` dosyasına yazılır):
+
+```bash
+curl -i -c cookies.txt -X POST localhost:8080/api/v1/auth/login -H 'X-Vurli-Client: curl' -H 'Content-Type: application/json' -d '{"email":"ben@example.com","password":"en az on karakter"}'
+```
+
+Link oluştur ve dene:
+
+```bash
+curl -s -b cookies.txt -X POST localhost:8080/api/v1/links -H 'X-Vurli-Client: curl' -H 'Content-Type: application/json' -d '{"targetUrl":"https://example.com","alias":"deneme"}'
 ```
 
 ```bash
 curl -i localhost:8080/deneme
 ```
 
-Diğer uç noktalar `DevLinkApiController` içinde: liste, hedef ve süre değiştirme, kapatma, açma, silme. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
+Diğer uç noktalar `AuthController` (`/api/v1/auth`: çıkış, `/me`, şifre sıfırlama) ve `LinkApiController` (`/api/v1/links`: liste, hedef ve süre değiştirme, kapatma, açma, silme) içinde. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
 
 ### Frontend
 

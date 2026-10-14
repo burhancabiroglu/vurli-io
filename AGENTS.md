@@ -15,7 +15,10 @@
 - The Next.js frontend is a BFF: it holds no business rules and never talks to the database. Every authorization decision is made in Spring.
 - Modules are the top-level packages under `io.vurli`. A module's base package is its API; subpackages are internal.
 - Schema changes go only through Flyway migrations in `backend/src/main/resources/db/migration`. Hibernate is set to `validate`.
-- `./gradlew bootRun` uses the `dev` profile and starts the root `compose.yaml` (PostgreSQL, Mailpit on http://localhost:8025): seed workspace from `db/dev` and an unauthenticated `/dev/api/links`. Anything `dev`-only must stay behind `@Profile("dev")`; `RedirectIntegrationTests` checks that the dev API is closed without it.
+- `./gradlew bootRun` uses the `dev` profile and starts the root `compose.yaml` (PostgreSQL, Mailpit on http://localhost:8025). If one of those containers already runs, Spring does not start the others; run `docker compose up -d` from the root then.
+- The JSON API lives under `/api/v1` and needs a session (except register, login, verify-email and password reset). State-changing requests must send the `X-Vurli-Client` header (CSRF defence, see `ClientHeaderFilter`). The session cookie is defined in `SessionCookieConfiguration`, not in `server.servlet.session.*` properties.
+- Integration tests send real emails to a Mailpit container; read them with the `Mailpit` test helper. `TestAccounts` registers, verifies and signs in users the way a user would.
+- Account responses must never reveal whether an address has an account.
 - Every change to a link must invalidate `LinkCache` after its transaction commits.
 - Make one small behavior change at a time, together with its tests. Integration tests use real PostgreSQL via Testcontainers.
 - Never weaken a test or a security control to get a passing result.

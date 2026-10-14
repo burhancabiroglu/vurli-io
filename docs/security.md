@@ -33,18 +33,21 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 **Önlemler:**
 
-- Şifreler Argon2id ile hash'lenir (Spring Security `DelegatingPasswordEncoder`). Şifre en az 10 karakter olmalı.
-- Giriş denemelerine hem IP hem hesap bazında hız sınırı uygulanır.
-- Hata mesajı "e-posta veya şifre hatalı" şeklindedir; hangisinin yanlış olduğu söylenmez. Kayıt ve şifre sıfırlama da bir hesabın var olup olmadığını belli etmez.
-- Doğrulama ve sıfırlama token'ları rastgele üretilir, tek kullanımlıktır, hash'li saklanır ve kısa ömürlüdür (24 saat ve 1 saat).
-- Şifre değişince diğer bütün oturumlar kapatılır.
+- Şifreler Argon2id ile hash'lenir (Spring Security `DelegatingPasswordEncoder`, OWASP asgari parametreleri). Şifre en az 10, en fazla 128 karakter. *Uygulandı.*
+- Giriş denemelerine hem IP hem hesap bazında hız sınırı uygulanır. *M3.*
+- Hata mesajı "e-posta veya şifre hatalı" şeklindedir; hangisinin yanlış olduğu söylenmez. Kayıt ve şifre sıfırlama da bir hesabın var olup olmadığını belli etmez. *Uygulandı.*
+- Doğrulama ve sıfırlama token'ları rastgele üretilir, tek kullanımlıktır, hash'li saklanır ve kısa ömürlüdür (24 saat ve 1 saat). E-postada URL fragment'ında taşınır. *Uygulandı.*
+- Girişte oturum kimliği yenilenir; şifre sıfırlanınca bütün oturumlar kapatılır. *Uygulandı.*
 - Yönetici hesaplarında TOTP ile iki adımlı doğrulama zorunludur (M4'ten önce).
 
-**Testler:**
+**Testler** (`AccountManagementIntegrationTests`, `AuthApiTests`):
 
-- Kaba kuvvet denemeleri hız sınırına takılır.
-- Kullanılmış veya süresi dolmuş token reddedilir.
-- Kayıt ve sıfırlama yanıtları, var olan ve olmayan hesap için aynıdır.
+- Kullanılmış, süresi dolmuş, bozuk veya bilinmeyen token aynı şekilde reddedilir; veritabanında yalnızca SHA-256 saklanır.
+- Kayıt yanıtı yeni ve kayıtlı adres için birebir aynıdır; yanlış şifre ile bilinmeyen adres aynı 401'i alır.
+- Aynı adrese 8 paralel kayıttan tek hesap çıkar.
+- Tekrar girişte eski oturum kimliği geçersizleşir; şifre sıfırlanınca açık oturum 401 alır.
+- Negatif kontroller: oturum kimliği yenileme, sıfırlamada oturum silme, token'ın tek kullanımlık olması ve başlık filtresi sırayla bozulunca ilgili testler başarısız oluyor.
+- Kaba kuvvet denemeleri hız sınırına takılır. *M3.*
 
 ## 4. URL hileleri ve yönlendirme bütünlüğü
 
@@ -63,7 +66,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 - React ve Thymeleaf varsayılan olarak escape eder. `dangerouslySetInnerHTML` ve `th:utext` kullanılmaz. Kullanıcının girdiği hedef URL'ler panelde yalnızca metin olarak gösterilir; tıklanabilir linkler `rel="noopener noreferrer"` taşır.
 - CSP ile script'ler yalnızca kendi origin'imizden yüklenir; Next.js'in gerektirdiği inline script'ler nonce ile izin alır.
-- Kullanıcı panelinde CSRF koruması Next.js katmanındadır: `SameSite=Lax` çerez ve değişiklik isteklerinde `Origin` kontrolü. Yönetici panelinde Spring Security CSRF koruması açıktır.
+- Kullanıcı panelinde CSRF koruması iki katmanlı: Next.js'te `SameSite=Lax` çerez ve `Origin` kontrolü; Spring API'de her değişiklik isteğinde zorunlu `X-Vurli-Client` başlığı (OWASP'ın "custom request header" savunması; API CORS izni vermez). Yönetici panelinde Spring Security CSRF koruması açık olacak (M3).
 - Oturum çerezi host-only, `Secure`, `HttpOnly` ve `SameSite=Lax`'tır. Kısa link alan adı (`vurli.io`) oturum çerezini hiç görmez.
 - **Spring API internete açık değildir.** Yalnızca iç ağdan, Next.js'ten gelen istekleri kabul eder. Bu ek bir savunma katmanıdır, tek başına güvenlik değildir: Next.js'in uç noktaları da dışa açık olduğu için her yetki kararı Spring'de verilir.
 - Next.js tarayıcıdan gelen çerezi yalnızca Spring'e iletir; başka bir adrese istek atarken çerez taşımaz. Spring'in adresi yapılandırmadan gelir, istekten alınmaz (SSRF'ye karşı).
