@@ -9,12 +9,13 @@
 
 ## Engineering
 
-- Build and test: `JAVA_HOME=$(/usr/libexec/java_home -v 25) ./mvnw -B verify`. It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries.
+- Build and test: `./gradlew build` (Gradle Kotlin DSL; the Java 25 toolchain is resolved automatically). It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries. Test counts are in `build/test-results/test/*.xml`.
 - Modules are the top-level packages under `io.vurli`. A module's base package is its API; subpackages are internal.
 - Schema changes go only through Flyway migrations in `src/main/resources/db/migration`. Hibernate is set to `validate`.
 - Make one small behavior change at a time, together with its tests. Integration tests use real PostgreSQL via Testcontainers.
 - Never weaken a test or a security control to get a passing result.
 - Keep secrets and real personal data out of code, logs, fixtures and prompts.
+- Commit messages and PR descriptions are written in English. Commits and PRs are authored only by the user: never add `Co-Authored-By` or any other AI attribution line.
 
 ## Handoff
 

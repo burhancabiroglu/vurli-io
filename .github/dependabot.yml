@@ -1,11 +1,11 @@
 version: 2
 updates:
-  - package-ecosystem: maven
+  - package-ecosystem: gradle
     directory: /
     schedule:
       interval: weekly
     groups:
-      maven:
+      gradle:
         patterns: ['*']
 
   - package-ecosystem: github-actions

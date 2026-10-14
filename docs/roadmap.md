@@ -4,12 +4,12 @@ Kapasite: haftada 5–10 saat, tek geliştirici ve AI desteği. Süreler kaba ta
 
 ## M0 — İskelet (10–15 saat)
 
-- Git deposu ve GitHub, Maven Wrapper, Spring Boot projesi, modül paketleri
+- Git deposu ve GitHub, Gradle Wrapper, Spring Boot projesi, modül paketleri
 - Yerel PostgreSQL için Docker Compose; Flyway kurulumu (ilk gerçek migration M1'deki `links` tablosu)
 - Testcontainers ile ilk entegrasyon testi; Spring Modulith modül sınırı testi
 - GitHub Actions: her push'ta build ve test
 
-**Bitti sayılır:** temiz bir klonda `./mvnw verify` geçiyor ve CI yeşil.
+**Bitti sayılır:** temiz bir klonda `./gradlew build` geçiyor ve CI yeşil.
 
 ## M1 — Link çekirdeği (25–35 saat)
 

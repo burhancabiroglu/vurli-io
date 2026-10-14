@@ -24,7 +24,7 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | ID | Karar | Durum | Gerekçe |
 |---|---|---|---|
 | K10 | Java 25 (LTS) ve Spring Boot'un güncel kararlı 4.x sürümü | Varsayılan | Java/Spring kullanıcı tercihi. Kesin sürümler M0'da doğrulanır |
-| K11 | Build aracı: Maven Wrapper | Varsayılan | Spring ekosisteminde en yaygın araç. İstenirse Gradle'a geçilebilir |
+| K11 | Build aracı: Maven Wrapper | Değişti → K27 | Kurumsal Java projelerinde en yaygın build aracı olduğu için seçilmişti |
 | K12 | Modüler monolit, tek uygulama, tek deploy | Varsayılan | Tek geliştirici ve tek sunucu için en sade yapı. Modül sınırları testle korunur ([mimari](architecture.md#modüller)) |
 | K13 | PostgreSQL, şema değişiklikleri Flyway ile | Varsayılan | Unique constraint, transaction ve JSONB desteği yeterli; tek veritabanı |
 | K14 | Redis yok; uygulama içi cache (Caffeine) | Varsayılan | Tek instance'ta Redis yalnızca işletme yükü getirir. İkinci instance gerektiğinde yeniden değerlendirilir |
@@ -40,6 +40,7 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K24 | URL güvenlik kontrolü: Google Web Risk API | Varsayılan | Google Safe Browsing API ticari kullanıma kapalı; ticari karşılığı Web Risk. Ücret ve kota koşulları M3'te doğrulanacak |
 | K25 | Git, GitHub ve GitHub Actions | Varsayılan | Repo M0'da açılır |
 | K26 | Testler: JUnit 5 ve Testcontainers ile gerçek PostgreSQL | Varsayılan | Unique constraint, transaction ve izolasyon davranışı sahte veritabanıyla doğrulanamaz |
+| K27 | Build aracı: Gradle Wrapper, Kotlin DSL (`build.gradle.kts`) | Kesin, 2026-10-14 | Spring Initializr'ın ve Spring Boot'un kendi varsayılanı; yeni projelerde payı artıyor. Java toolchain JDK 25'i kendisi bulur ve artımlı build hızlıdır. Wrapper jar'ı ve dağıtımı checksum ile doğrulanır. Maven'ın kurumsal dünyadaki yaygınlığı bilinçli olarak göze alındı; iki araç da bilinmeli |
 
 ## Açık sorular
 

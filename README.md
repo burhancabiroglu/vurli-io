@@ -19,24 +19,18 @@ AI araçlarıyla çalışma kuralları [AGENTS.md](AGENTS.md) içinde. Codex'in 
 
 ## Geliştirme
 
-Gerekenler: JDK 25 ve çalışan bir Docker. Maven kurmaya gerek yok; repodaki Maven Wrapper (`./mvnw`) kendi sürümünü indirir.
+Gerekenler: kurulu bir JDK 25 ve çalışan bir Docker. Gradle kurmaya gerek yok; repodaki Gradle Wrapper (`./gradlew`) kendi sürümünü indirir. Gradle'ı çalıştıran Java 17 veya üstü olabilir; kod her durumda toolchain üzerinden JDK 25 ile derlenir.
 
-Sistemdeki varsayılan Java 25 değilse önce `JAVA_HOME`'u ayarla (macOS):
-
-```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 25)
-```
-
-Bütün testleri çalıştır (Testcontainers gerçek bir PostgreSQL 18 başlatır):
+Derle ve bütün testleri çalıştır (Testcontainers gerçek bir PostgreSQL 18 başlatır):
 
 ```bash
-./mvnw verify
+./gradlew build
 ```
 
 Uygulamayı yerelde çalıştır (Spring Boot `compose.yaml` ile PostgreSQL'i kendisi başlatır):
 
 ```bash
-./mvnw spring-boot:run
+./gradlew bootRun
 ```
 
-Her push ve PR'da GitHub Actions aynı `verify` komutunu çalıştırır ([ci.yml](.github/workflows/ci.yml)).
+Her push ve PR'da GitHub Actions aynı `build` komutunu çalıştırır ([ci.yml](.github/workflows/ci.yml)).
