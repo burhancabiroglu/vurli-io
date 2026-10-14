@@ -19,6 +19,15 @@ Sıradaki kilometre taşı: **M2, hesaplar ve panel** ([yol haritası](roadmap.m
 
 ## Kayıt
 
+### 2026-10-15 — CI hatası: Linux'ta zaman hassasiyeti
+
+- `8d36c88` commit'i CI'da başarısız oldu ([çalışma 38637757906](https://github.com/burhancabiroglu/vurli-io/actions/runs/38637757906)), yerelde ise geçiyordu. Log dosyaları oturum açmadan okunamadığı için sorun yerelde yeniden üretildi.
+- Kök neden: Linux'ta `Instant.now()` nanosaniye, PostgreSQL ise mikrosaniye tutar. Oluşturma yanıtındaki `createdAt` (ve kullanıcının gönderdiği nanosaniyeli `expiresAt`) veritabanında saklanandan farklıydı. `otherWorkspaceCannotSeeOrChangeLink` testi yanıtla veritabanı kaydını karşılaştırdığı için yalnızca Linux'ta başarısız oldu. macOS saati mikrosaniye hassasiyetinde olduğu için sorun yerelde görünmüyordu.
+- Doğrulama: `ClockConfiguration` geçici olarak nanosaniyeli bir saate çevrildi ve aynı test yerelde de aynı farkla başarısız oldu.
+- Düzeltme: test gevşetilmedi. `Link` entity'si sakladığı bütün zamanları mikrosaniyeye yuvarlıyor, böylece döndürülen değerle saklanan değer hep aynı.
+- Regresyon testi: `returnsExactlyWhatIsStoredWithNanosecondClock` işletim sisteminden bağımsız olarak nanosaniyeli sabit bir saat kullanıyor. Yuvarlama kaldırılınca bu test başarısız oluyor.
+- Sonuç: 151 test hem normal saatle hem nanosaniyeli saatle geçti. GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+
 ### 2026-10-15 — M1 dilim 3: yönetim ve dev API
 
 - `LinkManagement`: `get`, `list` (en yeni önce; sayfa boyutu en fazla 100), `changeTarget`, `changeExpiry`, `disable`, `enable`, `delete`. Bütün değişiklikler `expectedVersion` alıyor ve tek bir yoldan geçiyor:

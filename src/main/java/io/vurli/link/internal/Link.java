@@ -1,6 +1,7 @@
 package io.vurli.link.internal;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import io.vurli.link.LinkBlockedException;
@@ -59,9 +60,9 @@ public class Link {
 		link.code = code;
 		link.targetUrl = targetUrl;
 		link.status = LinkStatus.ACTIVE;
-		link.expiresAt = expiresAt;
-		link.createdAt = now;
-		link.updatedAt = now;
+		link.expiresAt = stored(expiresAt);
+		link.createdAt = stored(now);
+		link.updatedAt = link.createdAt;
 		return link;
 	}
 
@@ -82,41 +83,49 @@ public class Link {
 		requireNotBlocked();
 		this.targetUrl = targetUrl;
 		this.safetyCheckedAt = null;
-		this.updatedAt = now;
+		this.updatedAt = stored(now);
 	}
 
 	public void changeExpiry(Instant expiresAt, Instant now) {
 		requireNotBlocked();
-		this.expiresAt = expiresAt;
-		this.updatedAt = now;
+		this.expiresAt = stored(expiresAt);
+		this.updatedAt = stored(now);
 	}
 
 	public void disable(Instant now) {
 		requireNotBlocked();
 		this.status = LinkStatus.DISABLED;
-		this.updatedAt = now;
+		this.updatedAt = stored(now);
 	}
 
 	public void enable(Instant now) {
 		requireNotBlocked();
 		this.status = LinkStatus.ACTIVE;
-		this.updatedAt = now;
+		this.updatedAt = stored(now);
 	}
 
 	/** Allowed even when blocked: the row stays, so the code is never handed out again. */
 	public void delete(Instant now) {
-		this.deletedAt = now;
-		this.updatedAt = now;
+		this.deletedAt = stored(now);
+		this.updatedAt = this.deletedAt;
 	}
 
 	public void block(Instant now) {
 		this.status = LinkStatus.BLOCKED;
-		this.updatedAt = now;
+		this.updatedAt = stored(now);
 	}
 
 	public LinkView toView() {
 		return new LinkView(this.id, this.code, this.targetUrl, this.status, this.expiresAt, this.createdAt,
 				this.version);
+	}
+
+	/**
+	 * PostgreSQL keeps microseconds while {@code Instant.now()} has nanoseconds on Linux.
+	 * Truncating here keeps what we return identical to what is stored.
+	 */
+	private static Instant stored(Instant instant) {
+		return (instant != null) ? instant.truncatedTo(ChronoUnit.MICROS) : null;
 	}
 
 	private void requireNotBlocked() {

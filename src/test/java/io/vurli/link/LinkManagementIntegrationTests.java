@@ -172,6 +172,22 @@ class LinkManagementIntegrationTests {
 		assertThat(link.expiresAt()).isEqualTo(NOW.plusSeconds(1));
 	}
 
+	/**
+	 * Linux clocks have nanoseconds, PostgreSQL keeps microseconds: the returned link must
+	 * still equal the stored one.
+	 */
+	@Test
+	void returnsExactlyWhatIsStoredWithNanosecondClock() {
+		Instant now = NOW.plusNanos(123_456_789);
+		LinkManagement management = withCodesAt(now, "nanos01");
+
+		LinkView created = management.create(this.workspaceId,
+				new CreateLinkRequest("https://example.com", null, now.plusSeconds(60).plusNanos(1)));
+
+		assertThat(created.createdAt()).isEqualTo(NOW.plusNanos(123_456_000));
+		assertThat(this.linkManagement.get(this.workspaceId, created.id())).isEqualTo(created);
+	}
+
 	@Test
 	void invalidRequestsWriteNothing() {
 		assertThatExceptionOfType(InvalidTargetUrlException.class)
@@ -191,10 +207,14 @@ class LinkManagementIntegrationTests {
 
 	/** A {@link LinkManagement} whose generator returns the given codes in order, at a fixed time. */
 	private LinkManagement withCodes(String... codes) {
+		return withCodesAt(NOW, codes);
+	}
+
+	private LinkManagement withCodesAt(Instant now, String... codes) {
 		Deque<String> queue = new ArrayDeque<>(List.of(codes));
 		CodeGenerator generator = queue::removeFirst;
 		return new LinkManagement(this.linkRepository, this.transactionManager, this.targetUrlValidator, generator,
-				this.linkCache, Clock.fixed(NOW, ZoneOffset.UTC));
+				this.linkCache, Clock.fixed(now, ZoneOffset.UTC));
 	}
 
 	private int countLinksWithCode(String code) {
