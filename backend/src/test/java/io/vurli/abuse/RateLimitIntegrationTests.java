@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -180,21 +181,24 @@ class RateLimitIntegrationTests {
 		for (int i = 0; i < 300; i++) {
 			this.mvc.perform(get("http://vurli.io/" + code).with(from(address))).andExpect(status().isFound());
 		}
-		// The bucket refills 5 tokens a second, so a slow machine earns a few extra visits
-		// while the loop runs. Within a few more the limit must hold.
-		int extra = 0;
-		while (this.mvc.perform(get("http://vurli.io/" + code).with(from(address)))
-			.andReturn()
-			.getResponse()
-			.getStatus() == 302) {
-			assertThat(++extra).as("visits allowed beyond 300").isLessThan(50);
+		// The bucket refills a token every 200 ms, so a slow machine earns a few extra visits
+		// while the loop runs, and a token can return between any two requests. The checks
+		// therefore look at the rejected response itself, not at a later request.
+		MockHttpServletResponse rejected = null;
+		for (int extra = 0; rejected == null; extra++) {
+			assertThat(extra).as("visits allowed beyond 300").isLessThan(50);
+			MockHttpServletResponse response = this.mvc.perform(get("http://vurli.io/" + code).with(from(address)))
+				.andReturn()
+				.getResponse();
+			if (response.getStatus() != 302) {
+				rejected = response;
+			}
 		}
 
-		this.mvc.perform(get("http://vurli.io/" + code).with(from(address)))
-			.andExpect(status().isTooManyRequests())
-			.andExpect(header().doesNotExist(HttpHeaders.LOCATION))
-			.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
-			.andExpect(header().exists(HttpHeaders.RETRY_AFTER));
+		assertThat(rejected.getStatus()).isEqualTo(429);
+		assertThat(rejected.getHeader(HttpHeaders.LOCATION)).isNull();
+		assertThat(rejected.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+		assertThat(rejected.getHeader(HttpHeaders.RETRY_AFTER)).isEqualTo("1");
 		this.mvc.perform(get("http://vurli.io/" + code).with(from(TestAccounts.randomAddress())))
 			.andExpect(status().isFound());
 	}
