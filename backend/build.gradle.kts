@@ -35,7 +35,7 @@ dependencies {
 	// Argon2 password hashing in Spring Security needs BouncyCastle.
 	implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 	// QR codes; only the core encoder, images are drawn without AWT extras.
-	implementation("com.google.zxing:core:3.5.3")
+	implementation("com.google.zxing:core:3.5.4")
 	implementation("org.springframework.modulith:spring-modulith-starter-core")
 	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
