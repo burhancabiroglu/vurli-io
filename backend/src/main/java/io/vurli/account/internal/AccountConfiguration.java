@@ -3,8 +3,8 @@ package io.vurli.account.internal;
 import java.time.Clock;
 import java.util.Map;
 
-import io.vurli.abuse.AuditLog;
 import io.vurli.account.VurliUser;
+import io.vurli.audit.AuditLog;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.MessageSource;

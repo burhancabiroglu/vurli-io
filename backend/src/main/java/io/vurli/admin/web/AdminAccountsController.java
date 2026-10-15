@@ -3,12 +3,12 @@ package io.vurli.admin.web;
 import java.util.Map;
 import java.util.UUID;
 
-import io.vurli.abuse.AuditLog;
 import io.vurli.account.AccountAdministration;
 import io.vurli.account.AccountNotFoundException;
 import io.vurli.account.AccountSummary;
 import io.vurli.account.AdministratorAccountException;
 import io.vurli.account.VurliUser;
+import io.vurli.audit.AuditLog;
 import io.vurli.link.LinkModeration;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

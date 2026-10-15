@@ -8,16 +8,19 @@ import jakarta.servlet.DispatcherType;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.access.DelegatingAccessDeniedHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -106,12 +109,16 @@ class SecurityConfiguration {
 
 	@Bean
 	@Order(2)
-	SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
+			@Value("${vurli.session.secure-cookie:true}") boolean secureCookie) throws Exception {
 		http.authorizeHttpRequests((requests) -> requests
 			// Error dispatches must render the real status, not a 403 from denyAll below.
 			.dispatcherTypeMatchers(DispatcherType.ERROR)
 			.permitAll()
 			.requestMatchers(HttpMethod.GET, "/actuator/health")
+			.permitAll()
+			// The public report form (K51); the GET is covered by /* below.
+			.requestMatchers(HttpMethod.POST, "/abuse")
 			.permitAll()
 			// Single path segment only: /{code}
 			.requestMatchers(HttpMethod.GET, "/*")
@@ -119,8 +126,22 @@ class SecurityConfiguration {
 			.requestMatchers(HttpMethod.HEAD, "/*")
 			.permitAll()
 			.anyRequest()
-			.denyAll());
+			.denyAll())
+			// The short link domain never gets a session (K20). The report form's CSRF token
+			// therefore lives in its own cookie, sent only to /abuse and only first-party.
+			.csrf((csrf) -> csrf.csrfTokenRepository(reportFormCsrfTokens(secureCookie)))
+			.sessionManagement((sessions) -> sessions.sessionCreationPolicy(SessionCreationPolicy.NEVER))
+			.headers((headers) -> headers.contentSecurityPolicy((csp) -> csp.policyDirectives(
+					"default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")));
 		return http.build();
+	}
+
+	private static CookieCsrfTokenRepository reportFormCsrfTokens(boolean secure) {
+		CookieCsrfTokenRepository tokens = new CookieCsrfTokenRepository();
+		tokens.setCookieName("VURLI_REPORT_CSRF");
+		tokens.setCookiePath("/abuse");
+		tokens.setCookieCustomizer((cookie) -> cookie.httpOnly(true).secure(secure).sameSite("Strict"));
+		return tokens;
 	}
 
 }

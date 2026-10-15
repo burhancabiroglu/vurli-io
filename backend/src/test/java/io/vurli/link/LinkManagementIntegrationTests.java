@@ -66,7 +66,7 @@ class LinkManagementIntegrationTests {
 
 	@BeforeEach
 	void setUp() {
-		this.jdbc.update("truncate table click_events, link_daily_stats, links, workspaces");
+		this.jdbc.update("truncate table abuse_reports, click_events, link_daily_stats, links, workspaces");
 		this.workspaceId = UUID.randomUUID();
 		this.jdbc.update("insert into workspaces (id, name, created_at) values (?, 'test', now())", this.workspaceId);
 	}
@@ -218,7 +218,7 @@ class LinkManagementIntegrationTests {
 		Deque<String> queue = new ArrayDeque<>(List.of(codes));
 		CodeGenerator generator = queue::removeFirst;
 		return new LinkManagement(this.linkRepository, this.transactionManager, this.targetUrlValidator, generator,
-				this.linkCache, this.linkProperties, Clock.fixed(now, ZoneOffset.UTC));
+				this.linkCache, this.linkProperties, (target) -> TargetSafety.Verdict.UNKNOWN, Clock.fixed(now, ZoneOffset.UTC));
 	}
 
 	private int countLinksWithCode(String code) {

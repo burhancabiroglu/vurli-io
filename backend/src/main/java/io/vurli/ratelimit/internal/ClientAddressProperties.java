@@ -1,4 +1,4 @@
-package io.vurli.abuse.internal;
+package io.vurli.ratelimit.internal;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;

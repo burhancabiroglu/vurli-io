@@ -9,9 +9,9 @@ import java.util.UUID;
 import io.vurli.Mailpit;
 import io.vurli.TestAccounts;
 import io.vurli.TestcontainersConfiguration;
-import io.vurli.abuse.AuditLog;
 import io.vurli.account.AccountManagement;
 import io.vurli.account.TwoFactorAuthentication;
+import io.vurli.audit.AuditLog;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;

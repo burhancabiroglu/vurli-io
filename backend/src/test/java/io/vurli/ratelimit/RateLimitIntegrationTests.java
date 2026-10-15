@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

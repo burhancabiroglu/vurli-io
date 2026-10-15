@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import io.vurli.abuse.AuditLog;
+import io.vurli.audit.AuditLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

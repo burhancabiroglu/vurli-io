@@ -9,14 +9,14 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 **Önlemler:**
 
 - Yalnızca e-posta doğrulamalı hesaplar link oluşturabilir. Her workspace 24 saatte en fazla 50 link oluşturabilir; silinen linkler de sayılır (K42). *Uygulandı.*
-- Link oluşturulurken ve hedef değiştiğinde Web Risk kontrolü yapılır. Aktif linkler haftalık olarak yeniden taranır.
-- Tanıtım sayfasında "Kötüye kullanım bildir" formu ve `abuse@vurli.io` adresi bulunur.
+- Link oluşturulurken ve hedef değiştiğinde Web Risk kontrolü yapılır. Aktif linkler haftalık olarak yeniden taranır; tehlikeli çıkan link otomatik engellenir. *Uygulandı; API anahtarı M4'te verilecek, o zamana kadar kontrol kapalı ve linkler kontrol edilmemiş işaretli. Anahtar gelince tarama hepsini sırayla kontrol eder.*
+- `vurli.io/abuse` adresinde herkese açık bildirim formu var (K51). *Uygulandı.* Tanıtım sayfasından bağlantı ve `abuse@vurli.io` adresi M4'te.
 - Yönetici bir linki, bir hesabı veya bir hesabın bütün linklerini tek işlemle engelleyebilir. Her engelleme gerekçesiyle denetim kaydına yazılır (K50). *Uygulandı.*
 - `vurli.io`'nun kara liste durumu düzenli kontrol edilir (Google Safe Browsing site durumu, Spamhaus DBL).
 
 **Testler:**
 
-- Tehlikeli işaretli URL reddedilir (Web Risk'in test URL'leriyle).
+- Tehlikeli işaretli URL reddedilir; tarama sonradan tehlikeli olan linki engeller; yanıtsızlık linki engellemez ama kontrol edilmemiş bırakır (`SafetyIntegrationTests`, sahte servisle). İstemcinin Web Risk ile konuşması yerel bir HTTP sunucusuna karşı sınanır (`WebRiskSafetyTests`). Gerçek servis, Web Risk'in test URL'leriyle anahtar gelince (M4) denenecek.
 - Engelleme, commit'ten sonra başlayan bütün isteklerde etkilidir; eski kayıt cache'e geri yazılamaz (`LinkCacheTests`, M1). Yönetici panelinden yapılan engelleme, önbellekteki linkte bile bir sonraki ziyarette 410 döndürür (`AdminModerationIntegrationTests` ve uçtan uca `admin-block.spec.ts`).
 - Link sahibi engeli kaldıramaz; araya giren eski sürümlü bir değişiklik de toplu engeli geri alamaz (`LinkLifecycleIntegrationTests`).
 

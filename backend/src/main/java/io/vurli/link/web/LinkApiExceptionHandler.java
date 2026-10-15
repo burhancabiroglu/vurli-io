@@ -1,6 +1,5 @@
 package io.vurli.link.web;
 
-import io.vurli.abuse.RateLimitExceededException;
 import io.vurli.link.AliasTakenException;
 import io.vurli.link.InvalidAliasException;
 import io.vurli.link.InvalidExpiryException;
@@ -8,7 +7,9 @@ import io.vurli.link.InvalidTargetUrlException;
 import io.vurli.link.LinkBlockedException;
 import io.vurli.link.LinkNotFoundException;
 import io.vurli.link.LinkQuotaExceededException;
+import io.vurli.link.UnsafeTargetException;
 import io.vurli.link.LinkVersionConflictException;
+import io.vurli.ratelimit.RateLimitExceededException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -50,6 +51,11 @@ class LinkApiExceptionHandler {
 	@ExceptionHandler(InvalidTargetUrlException.class)
 	ProblemDetail invalidTarget(InvalidTargetUrlException ex) {
 		return problem(HttpStatus.UNPROCESSABLE_CONTENT, "invalid_target", ex.reason().name());
+	}
+
+	@ExceptionHandler(UnsafeTargetException.class)
+	ProblemDetail unsafeTarget() {
+		return problem(HttpStatus.UNPROCESSABLE_CONTENT, "unsafe_target", null);
 	}
 
 	@ExceptionHandler(InvalidAliasException.class)

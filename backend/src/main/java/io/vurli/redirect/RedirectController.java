@@ -2,14 +2,14 @@ package io.vurli.redirect;
 
 import java.util.Locale;
 
-import io.vurli.abuse.ClientAddresses;
-import io.vurli.abuse.RateLimit;
-import io.vurli.abuse.RateLimitExceededException;
-import io.vurli.abuse.RateLimiter;
 import io.vurli.analytics.ClickRecorder;
 import io.vurli.analytics.Visit;
 import io.vurli.link.LinkResolution;
 import io.vurli.link.LinkResolver;
+import io.vurli.ratelimit.ClientAddresses;
+import io.vurli.ratelimit.RateLimit;
+import io.vurli.ratelimit.RateLimitExceededException;
+import io.vurli.ratelimit.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 

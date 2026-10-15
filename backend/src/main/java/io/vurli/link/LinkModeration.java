@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -92,6 +93,40 @@ public class LinkModeration {
 			.stream()
 			.map(Link::toModerated)
 			.toList();
+	}
+
+	/** Links whose target is due for a (re)check, unchecked first. */
+	public List<SafetyCandidate> dueForSafetyCheck(Instant checkedBefore, int limit) {
+		return this.links.findDueForSafetyCheck(checkedBefore, PageRequest.of(0, Math.clamp(limit, 1, 1000)));
+	}
+
+	/** @return false if the target changed since it was read, so the check is void */
+	public boolean recordSafe(UUID linkId, String targetUrl) {
+		Integer updated = this.transaction
+			.execute((status) -> this.links.markSafetyChecked(linkId, targetUrl, this.clock.instant()));
+		return updated != null && updated == 1;
+	}
+
+	/**
+	 * Blocks a link found unsafe, but only if its target is still the one that was
+	 * checked: an owner may have replaced it with a safe one in the meantime.
+	 * @return whether the link was blocked
+	 */
+	public boolean blockIfTarget(UUID linkId, String checkedTargetUrl) {
+		boolean[] blocked = { false };
+		change(linkId, (link, now) -> {
+			// Reset on every attempt: a retry after a concurrent change decides afresh.
+			blocked[0] = false;
+			if (link.targetUrl().equals(checkedTargetUrl) && link.toModerated().status() != LinkStatus.BLOCKED) {
+				link.block(now);
+				blocked[0] = true;
+			}
+		});
+		return blocked[0];
+	}
+
+	public Optional<ModeratedLink> findByCode(String code) {
+		return this.links.findByCode(code).map(Link::toModerated);
 	}
 
 	public ModeratedLink get(UUID linkId) {

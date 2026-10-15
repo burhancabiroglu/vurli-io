@@ -16,10 +16,10 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 
-import io.vurli.abuse.AuditLog;
-import io.vurli.account.internal.SecretCipher;
 import io.vurli.account.internal.Base32Codec;
+import io.vurli.account.internal.SecretCipher;
 import io.vurli.account.internal.Totp;
+import io.vurli.audit.AuditLog;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;

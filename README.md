@@ -83,7 +83,9 @@ Yerelde http://localhost:8080/admin adresinde. Önce kullanıcı panelinden kay�
 cd backend && ./gradlew bootRun --args='--vurli.admin.promote=ben@example.com'
 ```
 
-İlk girişte bir doğrulama uygulamasıyla (Google Authenticator, 1Password, Authy...) ikinci adımı kurarsın ve 10 yedek kod alırsın. Panelde linkleri ve hesapları arayabilir, engelleyebilir, hesapları askıya alabilir ve denetim kaydını görebilirsin; her işlem bir gerekçe ister. Telefonunu ve yedek kodlarını kaybedersen `--vurli.admin.reset-totp=ben@example.com` ile ikinci adım sıfırlanır.
+İlk girişte bir doğrulama uygulamasıyla (Google Authenticator, 1Password, Authy...) ikinci adımı kurarsın ve 10 yedek kod alırsın. Panelde linkleri ve hesapları arayabilir, engelleyebilir, hesapları askıya alabilir, http://localhost:8080/abuse formundan gelen bildirimleri ele alabilir ve denetim kaydını görebilirsin; her işlem bir gerekçe ister.
+
+Link güvenlik kontrolü (Google Web Risk) bir API anahtarı ister; yoksa kontrol kapalıdır ve linkler "kontrol edilmedi" olarak kalır. Anahtarı denemek istersen `VURLI_WEB_RISK_API_KEY` ortam değişkeniyle ver; repoya ya da bir dosyaya yazma. Telefonunu ve yedek kodlarını kaybedersen `--vurli.admin.reset-totp=ben@example.com` ile ikinci adım sıfırlanır.
 
 ### Frontend
 

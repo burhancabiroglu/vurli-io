@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import io.vurli.link.SafetyCandidate;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +19,8 @@ public interface LinkRepository extends JpaRepository<Link, UUID> {
 			select new io.vurli.link.internal.LinkSnapshot(l.id, l.targetUrl, l.status, l.expiresAt, l.deletedAt)
 			from Link l where l.code = :code""")
 	Optional<LinkSnapshot> findSnapshotByCode(String code);
+
+	Optional<Link> findByCode(String code);
 
 	/** Owner access: always scoped to the workspace, deleted links are invisible. */
 	Optional<Link> findByIdAndWorkspaceIdAndDeletedAtIsNull(UUID id, UUID workspaceId);
@@ -33,6 +37,25 @@ public interface LinkRepository extends JpaRepository<Link, UUID> {
 			where l.code = :code or lower(l.targetUrl) like :pattern escape '\\'
 			order by l.createdAt desc, l.id desc""")
 	List<Link> search(String code, String pattern, Pageable pageable);
+
+	/**
+	 * Live links never checked or last checked before {@code checkedBefore}, unchecked
+	 * first, then the oldest checks.
+	 */
+	@Query("""
+			select new io.vurli.link.SafetyCandidate(l.id, l.code, l.targetUrl) from Link l
+			where l.deletedAt is null and l.status <> io.vurli.link.LinkStatus.BLOCKED
+			  and (l.safetyCheckedAt is null or l.safetyCheckedAt < :checkedBefore)
+			order by l.safetyCheckedAt asc nulls first, l.createdAt asc""")
+	List<SafetyCandidate> findDueForSafetyCheck(Instant checkedBefore, Pageable pageable);
+
+	/**
+	 * Only if the target is still the one that was checked. Not an owner change, so the
+	 * version stays: an owner's form does not go stale because of a background check.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update Link l set l.safetyCheckedAt = :checkedAt where l.id = :id and l.targetUrl = :targetUrl")
+	int markSafetyChecked(UUID id, String targetUrl, Instant checkedAt);
 
 	@Query("select l.code from Link l where l.workspaceId = :workspaceId and l.status <> io.vurli.link.LinkStatus.BLOCKED")
 	List<String> findUnblockedCodes(UUID workspaceId);

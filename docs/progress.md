@@ -8,16 +8,58 @@ M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve k
 
 1. Hız sınırları ve kotalar: tamamlandı.
 2. İstatistik: tamamlandı.
-3. Yönetici paneli: tamamlandı (3a `9c17824`; 3b aşağıdaki kayıt). M3'ün "bitti" şartlarından ilki (panel → yönlendirme uçtan uca testi) karşılandı.
-4. Web Risk ve bildirim formu: sırada.
-5. Yük testi: M3'ün ikinci "bitti" şartı.
+3. Yönetici paneli: tamamlandı (`47933d3`, CI yeşil).
+4. Web Risk ve bildirim formu: tamamlandı (aşağıdaki kayıt); Web Risk anahtarı M4'te.
+5. Yük testi: sırada; M3'ün son "bitti" şartı.
 
 ## Sıradaki adım
 
-1. Dilim 3b commit'inin üç CI işini kontrol et. Yeni uçtan uca test CI'da `docker compose exec` kullanıyor; ilk çalışmada buna dikkat.
-2. M3 dilim 4, Web Risk ve bildirim formu: Google Cloud hesabı ve faturalandırma gerektiriyor (kullanıcının açması gerekir). Ücret ve kota koşulları K24'e göre doğrulanmalı; alternatif olarak ücretsiz kaynaklar (ör. URLhaus, PhishTank) değerlendirilebilir.
+1. Dilim 4 commit'inin üç CI işini kontrol et.
+2. M3 dilim 5, ilk yük testi: yönlendirmenin gecikmesi ve kapasitesi ölçülür, sonuçlar kaydedilir (araç k6 veya Gatling; seçilmeli). Hız sınırları yük testinde yönlendirmeyi kısacağı için test ortamının nasıl kurulacağı da kararlaştırılmalı.
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 4: Web Risk ve bildirim formu
+
+- Kararlar:
+  - K24 kesinleşti. Web Risk koşulları doğrulandı: ayda ilk 100.000 sorgu ücretsiz, sonrası 1.000 sorgu başına 0,50 $; Google Cloud projesi, faturalandırma ve API anahtarı gerekiyor. Anahtar M4'te verilecek.
+  - K51: herkese açık bildirim formu `vurli.io/abuse`.
+- Modül düzeni: hız sınırları `ratelimit`, denetim kaydı `audit` modülüne taşındı. Sebep: `abuse`'un linkleri engelleyebilmesi için `link`'e bağlanması gerekiyordu. Oysa `link` → `account` → `abuse` zinciri zaten vardı; taşınmasaydı döngü oluşacaktı. Davranış değişmedi; `ModularityTests` döngü bulmuyor.
+- `link`:
+  - `TargetSafety` arayüzü (SAFE, UNSAFE, UNKNOWN) ve `UnsafeTargetException` (422 `unsafe_target`).
+  - Oluşturmada ve hedef değişiminde kontrol. Yanıt yoksa link kontrolsüz oluşturuluyor.
+  - `LinkModeration`: `dueForSafetyCheck`, `recordSafe` ve `blockIfTarget` (yalnızca hedef değişmediyse), `findByCode`.
+- `abuse`:
+  - `WebRiskSafety` (JDK HTTP istemcisi, 3 sn zaman aşımı, anahtar başlıkta).
+  - `SafetyScanner` (5 dakikada bir, çalışma başına 50 link, 7 günde bir yeniden kontrol).
+  - `AbuseReports` ve `/abuse` formu (Thymeleaf, Türkçe ve İngilizce).
+  - Şema: `V8__create_abuse_reports.sql`.
+- Varsayılan güvenlik zinciri:
+  - Oturum oluşturmuyor.
+  - CSRF token'ı `VURLI_REPORT_CSRF` çerezinde (`Path=/abuse`, `SameSite=Strict`).
+  - Kısa link alan adındaki sayfalara CSP `default-src 'none'`.
+- Yeni hız sınırı: adres başına saatte 5 bildirim.
+- `admin`: `/admin/reports` ve menüde açık bildirim sayısı.
+- Panel: `unsafe_target` hata metni.
+- Yol üstünde bulunan sorunlar:
+  - **Taramayı kilitleyen tek URL:** tarama ilk yanıtsız sorguda duruyordu. Sıralamada kontrolsüz linkler hep başta olduğu için, servisin hep hata verdiği tek bir URL bütün taramayı kalıcı olarak durdurabilirdi. Test, başka bir testin bıraktığı yanıtsız link yüzünden kırılınca ortaya çıktı. Artık art arda 3 yanıtsız sorgu kesinti sayılıyor, tek bir yanıtsız sorgu atlanıyor; bunun ayrı bir testi var.
+  - **TRUNCATE:** `abuse_reports` da `links`'e bağlı; `LinkManagementIntegrationTests` listesine eklendi.
+  - **MockMvc ve SameSite:** Spring Security özniteliği çereze Servlet 6'nın genel öznitelik alanıyla ekliyor; MockMvc bunu başlık metnine yazmıyor. Test özniteliği çerez nesnesinden okuyor. Gerçek sunucunun başlığında `SameSite=Strict` olduğu `curl` ile görüldü.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 350 test, 0 başarısız.
+    - `WebRiskSafetyTests` (5, yerel HTTP sunucusuyla): boş yanıt güvenli, `threat` tehlikeli; anahtar başlıkta, URL'de değil; hedefteki `?`, `&` ve iç içe `uri=` tek bir parametre olarak kodlanıyor; 500, 403 ve zaman aşımı "yanıt yok"; anahtar yoksa hiç istek gitmiyor.
+    - `SafetyIntegrationTests` (8): tehlikeli hedef reddediliyor ve hiçbir şey yazılmıyor (API'de 422); kontrol zamanı yalnızca yanıt varsa yazılıyor; yeni hedef de kontrol ediliyor; tarama sonradan tehlikeli olan linki engelliyor (önbellekteyken bile 410) ve sistem eylemi olarak kaydediyor; kontrolsüz linkleri kontrol edip yenilere dokunmuyor; 3 yanıtsız sorguda duruyor; tek yanıtsız URL'yi atlıyor; eski hedef için verilen karar geçersiz.
+    - `AbuseReportsTests` (15): yapıştırılan biçimlerden kod çıkarma ve geçersiz girdilerin reddi.
+    - `AbuseReportIntegrationTests` (6): sayfa yalnızca CSRF çerezi koyuyor (oturum yok), CSP var; bildirim linkiyle birlikte saklanıyor; var olan ve olmayan link için birebir aynı yanıt; hatalı linkte girilenler korunuyor ve kayıt yazılmıyor; token'sız POST 403; adres başına 5 bildirim.
+    - `AdminModerationIntegrationTests` (+1): bildirimden engelleme (410, denetim kaydında bildirim kimliği) ve işlem yapmadan kapatma; ayrıntılar escape ediliyor; kapalı bildirim tekrar kapatılamıyor.
+    - Negatif kontroller (her biri ayrı, sonra geri alındı): tehlikeli hedefi kabul etmek, taramayı ilk yanıtsız sorguda durdurmak, hedefi değişmiş linki engellemek, bildirim sınırını kaldırmak, geçersiz kodu kabul etmek, CSRF'i kapatmak ve anahtarı URL'ye koymak testleri kırdı.
+  - `cd frontend`: lint, typecheck, `npm test` (65), build geçti; `npm run e2e`: 3 test geçti.
+  - Gerçek sunucuda: anahtar olmadığı için kontrolün kapalı olduğu uyarısı log'da. `curl` ile form başlıkları (`Set-Cookie: VURLI_REPORT_CSRF=…; Path=/abuse; HttpOnly; SameSite=Strict`, CSP, `no-store`); kısa link yanıtında çerez yok. Uygulama içi tarayıcıda form dolduruldu ve gönderildi, yöneticiyle (TOTP) bildirim listede linkin sahibi ve durumuyla görüldü; "linki engelle ve kapat" sonrası link 410 döndü; konsolda hata yok.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Gerçek Web Risk servisiyle deneme anahtar gelince (M4); Google'ın test URL'leriyle yapılacak.
+  - Tanıtım sayfasından forma bağlantı ve `abuse@vurli.io` M4'te.
+  - Web Risk kotası: tarama en fazla 5 dakikada 50 sorgu yapıyor; çok sayıda kontrolsüz link birikirse günlük ücretsiz payı (yaklaşık 3.300) aşabilir. Anahtar verildiğinde biriken linkler için gözlenmeli.
 
 ### 2026-10-15 — M3 dilim 3b: yönetici işlemleri ve denetim kaydı
 

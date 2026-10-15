@@ -80,7 +80,8 @@
     "link_blocked": "This link is blocked and cannot be changed.",
     "link_not_found": "Link not found.",
     "rate_limited": "Too many attempts. Wait a moment and try again.",
-    "link_quota_exceeded": "You reached the number of links you can create in 24 hours. Try again later."
+    "link_quota_exceeded": "You reached the number of links you can create in 24 hours. Try again later.",
+    "unsafe_target": "This address is on a list of dangerous sites (phishing or malware). A link to it cannot be created."
   },
   "links": {
     "createTitle": "New link",

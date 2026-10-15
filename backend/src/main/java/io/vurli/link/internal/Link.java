@@ -54,7 +54,12 @@ public class Link {
 	protected Link() {
 	}
 
-	public static Link create(UUID workspaceId, String code, String targetUrl, Instant expiresAt, Instant now) {
+	/**
+	 * @param safetyCheckedAt when the target was found safe, or {@code null} if the check
+	 * gave no answer and is still due
+	 */
+	public static Link create(UUID workspaceId, String code, String targetUrl, Instant expiresAt,
+			Instant safetyCheckedAt, Instant now) {
 		Link link = new Link();
 		link.id = UUID.randomUUID();
 		link.workspaceId = workspaceId;
@@ -62,6 +67,7 @@ public class Link {
 		link.targetUrl = targetUrl;
 		link.status = LinkStatus.ACTIVE;
 		link.expiresAt = stored(expiresAt);
+		link.safetyCheckedAt = stored(safetyCheckedAt);
 		link.createdAt = stored(now);
 		link.updatedAt = link.createdAt;
 		return link;
@@ -79,11 +85,18 @@ public class Link {
 		return this.code;
 	}
 
-	/** A new target has not been safety checked yet, whatever was true for the old one. */
-	public void changeTarget(String targetUrl, Instant now) {
+	public String targetUrl() {
+		return this.targetUrl;
+	}
+
+	/**
+	 * A new target carries its own check: whatever was true for the old one does not apply.
+	 * @param safetyCheckedAt when the new target was found safe, or {@code null}
+	 */
+	public void changeTarget(String targetUrl, Instant safetyCheckedAt, Instant now) {
 		requireNotBlocked();
 		this.targetUrl = targetUrl;
-		this.safetyCheckedAt = null;
+		this.safetyCheckedAt = stored(safetyCheckedAt);
 		this.updatedAt = stored(now);
 	}
 

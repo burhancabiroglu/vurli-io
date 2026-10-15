@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.ratelimit;
 
 import java.time.Duration;
 import java.util.EnumMap;
@@ -11,7 +11,7 @@ import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
 import io.github.bucket4j.EstimationProbe;
 import io.github.bucket4j.TimeMeter;
-import io.vurli.abuse.internal.RateLimitProperties;
+import io.vurli.ratelimit.internal.RateLimitProperties;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

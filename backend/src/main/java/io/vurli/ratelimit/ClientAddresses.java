@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.ratelimit;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -6,7 +6,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import io.vurli.abuse.internal.ClientAddressProperties;
+import io.vurli.ratelimit.internal.ClientAddressProperties;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.stereotype.Component;

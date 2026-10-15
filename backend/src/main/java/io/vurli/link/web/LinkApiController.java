@@ -4,8 +4,6 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
-import io.vurli.abuse.RateLimit;
-import io.vurli.abuse.RateLimiter;
 import io.vurli.account.AccountManagement;
 import io.vurli.account.VurliUser;
 import io.vurli.link.CreateLinkRequest;
@@ -15,6 +13,8 @@ import io.vurli.link.LinkQrCodes;
 import io.vurli.link.LinkView;
 import io.vurli.link.QrCode;
 import io.vurli.link.QrFormat;
+import io.vurli.ratelimit.RateLimit;
+import io.vurli.ratelimit.RateLimiter;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;

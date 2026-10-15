@@ -2,12 +2,12 @@ package io.vurli.account.web;
 
 import java.util.Locale;
 
-import io.vurli.abuse.ClientAddresses;
-import io.vurli.abuse.RateLimit;
-import io.vurli.abuse.RateLimiter;
 import io.vurli.account.AccountManagement;
 import io.vurli.account.AccountView;
 import io.vurli.account.VurliUser;
+import io.vurli.ratelimit.ClientAddresses;
+import io.vurli.ratelimit.RateLimit;
+import io.vurli.ratelimit.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 

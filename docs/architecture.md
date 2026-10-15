@@ -31,7 +31,9 @@ Kök paket `io.vurli`. Her modül kendi tablolarının sahibidir. Başka bir mod
 | `link` | Link oluşturma ve düzenleme, kod üretimi, URL doğrulama, linklerin QR kodu |
 | `redirect` | Kısa kodu çözüp yönlendirmek. Panelden bağımsız ve olabildiğince hızlı |
 | `analytics` | Tıklama kaydı, bot ayıklama, günlük özetler, istatistik sorguları |
-| `abuse` | Hız sınırları, URL güvenlik kontrolü, bildirimler, yönetici engellemesi, denetim kaydı |
+| `abuse` | URL güvenlik kontrolü (Web Risk), periyodik tarama, herkese açık bildirim formu ve bildirimler |
+| `ratelimit` | Hız sınırları ve istemci adresi |
+| `audit` | Yönetici ve sistem işlemlerinin denetim kaydı |
 | `admin` | Yönetici paneli: giriş akışı ve ekranlar (Thymeleaf) |
 | `qr` | QR kod çizimi (PNG, SVG); `link` ve `admin` kullanır |
 
@@ -51,7 +53,8 @@ email_tokens      id, user_id → users, purpose (VERIFY_EMAIL | RESET_PASSWORD)
 click_events      id, link_id, occurred_at, referrer_host, country, device_type
 link_daily_stats  link_id, day, clicks, by_referrer (jsonb), by_country (jsonb),
                   by_device (jsonb)                         PK (link_id, day)
-abuse_reports     id, link_id, reason, reporter_email (opsiyonel), status, created_at
+abuse_reports     id, code, link_id (kod bir linke aitse), reason (PHISHING | MALWARE | SPAM | OTHER), details,
+                  reporter_email (opsiyonel), status (OPEN | RESOLVED), created_at, resolved_at, resolved_by
 audit_log         id, actor_id (sistem için boş), action, target_type, target_id, details (jsonb), created_at
 admin_credentials user_id, totp_secret (AES-GCM ile şifreli), confirmed_at, last_used_step, created_at
 admin_backup_codes user_id, code_hash (SHA-256, unique), used_at, created_at
@@ -167,6 +170,15 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 - **E-posta:** düz metin, kullanıcının diline göre (`messages*.properties`). Gönderim hatası yanıtı değiştirmez (hangi dalın çalıştığını belli etmemek için); log'a yalnızca kullanıcı kimliği yazılır. Yeniden gönderme ve sıfırlama dakikada bir ile sınırlı.
 - **Oturum:** Spring Session JDBC, 24 saat hareketsizlikte sona erer. Girişte oturum kimliği değişir (session fixation). Şifre sıfırlanınca kullanıcının bütün oturumları silinir. Çerez `SessionCookieConfiguration`'da kodda tanımlı.
 - **Doğrulanmamış hesap** giriş yapabilir ama link oluşturamaz (`email_not_verified`, 403). Doğrulama durumu oturumdan değil veritabanından okunur, bu yüzden yeniden giriş gerekmez.
+
+## Kötüye kullanım
+
+`abuse` modülü. Uygulandı (M3 dilim 4).
+
+- **Güvenlik kontrolü (K24):** `link` modülü yalnızca kendi tanımladığı `TargetSafety` arayüzünü bilir; `abuse` onu Web Risk Lookup API ile gerçekleştirir. Bu yüzden bağımlılık tek yönlüdür (`abuse` → `link`). Link oluşturulurken ve hedef değişirken sorulur: listede olan hedef `422 unsafe_target` alır ve hiçbir şey yazılmaz. Güvenli ise `safety_checked_at` dolar. Yanıt yoksa (anahtar yok, hata, 3 saniyelik zaman aşımı) link yine oluşturulur ama kontrol edilmemiş kalır. API anahtarı URL'de değil `X-goog-api-key` başlığında gider; hedef URL'ler log'a yazılmaz.
+- **Tarama:** `SafetyScanner` 5 dakikada bir, hiç kontrol edilmemiş linklerle 7 günden eski kontrolleri sırayla sorar (çalışma başına 50). Listede çıkan link, hedefi o arada değişmediyse engellenir ve sistem eylemi olarak denetim kaydına yazılır. Art arda 3 yanıtsız sorgu kesinti sayılır ve tarama durur; tek bir yanıtsız URL ise atlanır, arkasındaki linkleri bekletmez. Anahtar yokken tarama çalışmaz.
+- **Bildirim formu (K51):** `vurli.io/abuse`. Yapıştırılan kısa linkten kod çıkarılır (`https://vurli.io/abc`, `vurli.io/abc`, `abc`). Bildirene linkin var olup olmadığı belli edilmez, yanıt hep aynıdır. CSRF token'ı oturumsuz, `VURLI_REPORT_CSRF` çerezinde tutulur (`Path=/abuse`, `HttpOnly`, `SameSite=Strict`); yönlendirme yanıtları hiçbir çerez taşımaz. Adres başına saatte 5 bildirim.
+- **Yönetici:** `/admin/reports` açık bildirimleri, bildirilen linkin hedefi, sahibi ve durumuyla gösterir. Linki engelleyip kapatmak ya da işlem yapmadan kapatmak gerekçe ister; ikisi de denetim kaydına yazılır.
 
 ## Hız sınırları
 

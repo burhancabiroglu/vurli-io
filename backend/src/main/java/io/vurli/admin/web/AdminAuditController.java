@@ -6,9 +6,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import io.vurli.abuse.AuditEntry;
-import io.vurli.abuse.AuditLog;
 import io.vurli.account.AccountAdministration;
+import io.vurli.audit.AuditEntry;
+import io.vurli.audit.AuditLog;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

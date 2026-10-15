@@ -1,0 +1,38 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex">
+	<title th:text="#{abuse.title} + ' · Vurli'">Report a link · Vurli</title>
+</head>
+<body>
+<main>
+	<h1 th:text="#{abuse.title}">Report a link</h1>
+	<p th:text="#{abuse.intro}">Tell us about a Vurli link that leads to phishing, malware or spam.</p>
+	<p role="alert" th:if="${error}" th:text="#{${error}}">Error</p>
+	<form method="post" th:action="@{/abuse}">
+		<p>
+			<label for="link" th:text="#{abuse.link}">Short link</label><br>
+			<input id="link" name="link" type="text" required maxlength="200" th:value="${link}" placeholder="https://vurli.io/...">
+		</p>
+		<p>
+			<label for="reason" th:text="#{abuse.reason}">What is wrong with it?</label><br>
+			<select id="reason" name="reason">
+				<option th:each="r : ${reasons}" th:value="${r}" th:text="#{'abuse.reason.' + ${r}}" th:selected="${r == reason}">Phishing</option>
+			</select>
+		</p>
+		<p>
+			<label for="details" th:text="#{abuse.details}">Details (optional)</label><br>
+			<textarea id="details" name="details" rows="5" cols="50" maxlength="2000" th:text="${details}"></textarea>
+		</p>
+		<p>
+			<label for="email" th:text="#{abuse.email}">Your email (optional)</label><br>
+			<input id="email" name="email" type="email" maxlength="254" th:value="${email}">
+			<br><small th:text="#{abuse.email-hint}">Only if you want us to be able to ask you something.</small>
+		</p>
+		<p><button type="submit" th:text="#{abuse.submit}">Send report</button></p>
+	</form>
+</main>
+</body>
+</html>

@@ -5,10 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.vurli.abuse.ClientAddresses;
-import io.vurli.abuse.RateLimiter;
 import io.vurli.analytics.ClickRecorder;
 import io.vurli.link.LinkResolver;
+import io.vurli.ratelimit.ClientAddresses;
+import io.vurli.ratelimit.RateLimiter;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;

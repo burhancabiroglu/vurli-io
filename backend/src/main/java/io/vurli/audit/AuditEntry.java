@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.audit;
 
 import java.time.Instant;
 import java.util.UUID;

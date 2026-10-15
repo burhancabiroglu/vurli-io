@@ -49,17 +49,20 @@ public class LinkManagement {
 
 	private final LinkProperties properties;
 
+	private final TargetSafety safety;
+
 	private final Clock clock;
 
 	public LinkManagement(LinkRepository links, PlatformTransactionManager transactionManager,
 			TargetUrlValidator targetUrlValidator, CodeGenerator codeGenerator, LinkCache cache,
-			LinkProperties properties, Clock clock) {
+			LinkProperties properties, TargetSafety safety, Clock clock) {
 		this.links = links;
 		this.transaction = new TransactionTemplate(transactionManager);
 		this.targetUrlValidator = targetUrlValidator;
 		this.codeGenerator = codeGenerator;
 		this.cache = cache;
 		this.properties = properties;
+		this.safety = safety;
 		this.clock = clock;
 	}
 
@@ -71,6 +74,7 @@ public class LinkManagement {
 	 * @throws AliasTakenException if the alias is already used, even by a deleted link
 	 * @throws InvalidExpiryException if the expiry is not in the future
 	 * @throws LinkQuotaExceededException if the workspace reached its daily quota
+	 * @throws UnsafeTargetException if the target is listed as dangerous
 	 */
 	public LinkView create(UUID workspaceId, CreateLinkRequest request) {
 		String targetUrl = this.targetUrlValidator.validate(request.targetUrl());
@@ -84,10 +88,12 @@ public class LinkManagement {
 		if (this.links.countByWorkspaceIdAndCreatedAtAfter(workspaceId, now.minus(Duration.ofDays(1))) >= quota) {
 			throw new LinkQuotaExceededException(quota);
 		}
+		// Last, so a refused request costs no safety lookup.
+		Instant checkedAt = checkSafety(targetUrl, now);
 
 		if (request.alias() != null && !request.alias().isBlank()) {
 			String alias = AliasPolicy.normalize(request.alias());
-			return insert(workspaceId, alias, targetUrl, request.expiresAt(), now)
+			return insert(workspaceId, alias, targetUrl, request.expiresAt(), checkedAt, now)
 				.orElseThrow(() -> new AliasTakenException(alias));
 		}
 
@@ -96,7 +102,7 @@ public class LinkManagement {
 			if (AliasPolicy.isReserved(code)) {
 				continue;
 			}
-			Optional<LinkView> created = insert(workspaceId, code, targetUrl, request.expiresAt(), now);
+			Optional<LinkView> created = insert(workspaceId, code, targetUrl, request.expiresAt(), checkedAt, now);
 			if (created.isPresent()) {
 				return created.get();
 			}
@@ -126,13 +132,15 @@ public class LinkManagement {
 	}
 
 	/**
-	 * The new target goes through the same validation as on creation and loses any
-	 * previous safety check.
+	 * The new target goes through the same validation and safety check as on creation.
 	 * @throws InvalidTargetUrlException if the target is not an acceptable destination
+	 * @throws UnsafeTargetException if the target is listed as dangerous
 	 */
 	public LinkView changeTarget(UUID workspaceId, UUID linkId, long expectedVersion, String targetUrl) {
 		String validated = this.targetUrlValidator.validate(targetUrl);
-		return mutate(workspaceId, linkId, expectedVersion, (link, now) -> link.changeTarget(validated, now));
+		Instant checkedAt = checkSafety(validated, this.clock.instant());
+		return mutate(workspaceId, linkId, expectedVersion,
+				(link, now) -> link.changeTarget(validated, checkedAt, now));
 	}
 
 	/**
@@ -198,10 +206,10 @@ public class LinkManagement {
 	 * @return the created link, or empty if the code is already taken
 	 */
 	private Optional<LinkView> insert(UUID workspaceId, String code, String targetUrl, Instant expiresAt,
-			Instant now) {
+			Instant checkedAt, Instant now) {
 		try {
 			LinkView created = this.transaction.execute((status) -> view(
-					this.links.saveAndFlush(Link.create(workspaceId, code, targetUrl, expiresAt, now))));
+					this.links.saveAndFlush(Link.create(workspaceId, code, targetUrl, expiresAt, checkedAt, now))));
 			// After commit: drops a cached "not found" for this code.
 			this.cache.invalidate(code);
 			return Optional.ofNullable(created);
@@ -212,6 +220,19 @@ public class LinkManagement {
 			}
 			throw ex;
 		}
+	}
+
+	/**
+	 * Refuses a listed target. Without an answer the link is still created, unchecked, and
+	 * the background scan tries again (architecture: availability over a hard dependency).
+	 * @return when the target was found safe, or {@code null} if there was no answer
+	 */
+	private Instant checkSafety(String targetUrl, Instant now) {
+		return switch (this.safety.check(targetUrl)) {
+			case SAFE -> now;
+			case UNSAFE -> throw new UnsafeTargetException();
+			case UNKNOWN -> null;
+		};
 	}
 
 	private LinkView view(Link link) {

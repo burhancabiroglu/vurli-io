@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.ratelimit;
 
 /**
  * The limits of K42. Capacities and periods come from {@code vurli.rate-limits.*}.
@@ -24,6 +24,9 @@ public enum RateLimit {
 	REDIRECTS_PER_IP,
 
 	/** Wrong second-factor codes of one administrator, wherever they come from. */
-	TOTP_FAILURES_PER_USER
+	TOTP_FAILURES_PER_USER,
+
+	/** Abuse reports from one address (K51). */
+	ABUSE_REPORTS_PER_IP
 
 }

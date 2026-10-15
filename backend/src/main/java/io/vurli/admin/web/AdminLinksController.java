@@ -7,9 +7,9 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import io.vurli.abuse.AuditLog;
 import io.vurli.account.AccountAdministration;
 import io.vurli.account.VurliUser;
+import io.vurli.audit.AuditLog;
 import io.vurli.link.LinkModeration;
 import io.vurli.link.LinkNotFoundException;
 import io.vurli.link.ModeratedLink;

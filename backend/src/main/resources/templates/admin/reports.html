@@ -1,0 +1,53 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.reports.title})}"></head>
+<body>
+<header th:replace="~{admin/fragments :: bar}"></header>
+<main>
+	<h1 th:text="#{admin.reports.title}">Reports</h1>
+	<div th:replace="~{admin/fragments :: flash}"></div>
+	<p class="muted" th:if="${#lists.isEmpty(reports)}" th:text="#{admin.reports.empty}">No open reports.</p>
+	<table th:unless="${#lists.isEmpty(reports)}">
+		<thead>
+			<tr>
+				<th th:text="#{admin.created}">Created</th>
+				<th th:text="#{admin.links.code}">Code</th>
+				<th th:text="#{admin.reports.reason}">Reason</th>
+				<th th:text="#{admin.reports.details}">Details</th>
+				<th th:text="#{admin.reports.link}">Link</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="report : ${reports}" th:attr="data-code=${report.code}" th:with="link=${report.linkId != null ? links[report.linkId] : null}">
+				<td th:text="${@adminFormat.time(report.createdAt)}">2026-10-15 12:00 UTC</td>
+				<td><code th:text="${report.code}">abc1234</code></td>
+				<td th:text="#{'abuse.reason.' + ${report.reason}}">Phishing</td>
+				<td class="details">
+					<span th:text="${report.details}">Details</span>
+					<br th:if="${report.reporterEmail != null}"><span class="muted" th:if="${report.reporterEmail != null}" th:text="${report.reporterEmail}">reporter@example.com</span>
+				</td>
+				<td class="target">
+					<span th:if="${link == null}" class="muted" th:text="#{admin.reports.no-link}">No such link</span>
+					<th:block th:if="${link != null}">
+						<span th:text="${link.targetUrl}">https://example.com</span><br>
+						<span class="muted" th:text="${owners[link.workspaceId]}">owner@example.com</span> ·
+						<span th:text="#{'admin.status.' + ${link.status}}">Active</span>
+					</th:block>
+				</td>
+				<td class="actions">
+					<form method="post" class="action" th:if="${link != null and link.status.name() != 'BLOCKED'}" th:action="@{/admin/reports/{id}/block(id=${report.id})}">
+						<input name="reason" type="text" required minlength="3" maxlength="500" th:placeholder="#{admin.reason}" th:aria-label="#{admin.reason}">
+						<button type="submit" class="danger" th:text="#{admin.reports.block}">Block link and close</button>
+					</form>
+					<form method="post" class="action" th:action="@{/admin/reports/{id}/dismiss(id=${report.id})}">
+						<input name="reason" type="text" required minlength="3" maxlength="500" th:placeholder="#{admin.reason}" th:aria-label="#{admin.reason}">
+						<button type="submit" class="secondary" th:text="#{admin.reports.dismiss}">Close</button>
+					</form>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</main>
+</body>
+</html>

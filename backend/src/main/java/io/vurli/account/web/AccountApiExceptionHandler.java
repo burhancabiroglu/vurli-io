@@ -1,10 +1,10 @@
 package io.vurli.account.web;
 
-import io.vurli.abuse.RateLimitExceededException;
 import io.vurli.account.InvalidEmailException;
 import io.vurli.account.InvalidTokenException;
 import io.vurli.account.TooManyEmailsException;
 import io.vurli.account.WeakPasswordException;
+import io.vurli.ratelimit.RateLimitExceededException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;

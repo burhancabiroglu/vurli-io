@@ -1,9 +1,9 @@
-package io.vurli.abuse.internal;
+package io.vurli.ratelimit.internal;
 
 import java.time.Duration;
 import java.util.Map;
 
-import io.vurli.abuse.RateLimit;
+import io.vurli.ratelimit.RateLimit;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

@@ -13,6 +13,7 @@
 		<nav>
 			<a th:href="@{/admin/links}" th:text="#{admin.nav.links}">Links</a>
 			<a th:href="@{/admin/accounts}" th:text="#{admin.nav.accounts}">Accounts</a>
+			<a th:href="@{/admin/reports}" th:text="#{admin.nav.reports(${@abuseReports.openCount()})}">Reports (0)</a>
 			<a th:href="@{/admin/audit}" th:text="#{admin.nav.audit}">Audit log</a>
 		</nav>
 		<span class="muted" sec:authentication="name">admin@example.com</span>

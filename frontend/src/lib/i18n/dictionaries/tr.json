@@ -80,7 +80,8 @@
     "link_blocked": "Bu link engellendi, değiştirilemez.",
     "link_not_found": "Link bulunamadı.",
     "rate_limited": "Çok fazla deneme yaptın. Biraz bekleyip tekrar dene.",
-    "link_quota_exceeded": "Son 24 saatte oluşturabileceğin link sınırına ulaştın. Daha sonra tekrar dene."
+    "link_quota_exceeded": "Son 24 saatte oluşturabileceğin link sınırına ulaştın. Daha sonra tekrar dene.",
+    "unsafe_target": "Bu adres tehlikeli sitelerin listesinde (phishing ya da zararlı yazılım). Bu hedefe link oluşturulamaz."
   },
   "links": {
     "createTitle": "Yeni link",

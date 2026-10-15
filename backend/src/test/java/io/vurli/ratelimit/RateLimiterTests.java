@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -9,7 +9,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import io.github.bucket4j.TimeMeter;
-import io.vurli.abuse.internal.RateLimitProperties;
+import io.vurli.ratelimit.internal.RateLimitProperties;
 import org.junit.jupiter.api.Test;
 
 class RateLimiterTests {

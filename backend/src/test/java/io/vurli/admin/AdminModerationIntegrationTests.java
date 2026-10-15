@@ -21,6 +21,8 @@ import io.vurli.ClientHeaderFilter;
 import io.vurli.Mailpit;
 import io.vurli.TestAccounts;
 import io.vurli.TestcontainersConfiguration;
+import io.vurli.abuse.AbuseReports;
+import io.vurli.abuse.ReportReason;
 import io.vurli.account.AccountManagement;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +59,9 @@ class AdminModerationIntegrationTests {
 
 	@Autowired
 	private JdbcTemplate jdbc;
+
+	@Autowired
+	private AbuseReports reports;
 
 	private AdminSessions.Admin admin;
 
@@ -206,6 +211,38 @@ class AdminModerationIntegrationTests {
 	}
 
 	@Test
+	void aReportLeadsToABlockOrIsDismissed() throws Exception {
+		Map<String, String> reported = createLink("https://example.com/sahte-banka");
+		Map<String, String> harmless = createLink("https://example.com/menu");
+		visit(reported).andExpect(status().isFound());
+		this.reports.submit("https://vurli.io/" + reported.get("code"), ReportReason.PHISHING, "<b>banka</b> taklidi", "");
+		this.reports.submit(harmless.get("code"), ReportReason.SPAM, "emin değilim", "");
+
+		String page = adminPage("/admin/reports");
+		assertThat(page).contains(reported.get("code")).contains(harmless.get("code"))
+			.contains("&lt;b&gt;banka&lt;/b&gt; taklidi")
+			.doesNotContain("<b>banka</b>");
+		UUID blockReport = reportId(reported.get("code"));
+		UUID dismissReport = reportId(harmless.get("code"));
+
+		adminPost("/admin/reports/" + blockReport + "/block", "phishing doğrulandı")
+			.andExpect(flash().attribute("message", "admin.reports.blocked"));
+		adminPost("/admin/reports/" + dismissReport + "/dismiss", "zararsız menü")
+			.andExpect(flash().attribute("message", "admin.reports.dismissed"));
+
+		visit(reported).andExpect(status().isGone());
+		visit(harmless).andExpect(status().isFound());
+		assertThat(audit("LINK_BLOCKED", reported.get("id"))).containsEntry("report", blockReport.toString());
+		assertThat(audit("REPORT_RESOLVED", blockReport.toString())).containsEntry("outcome", "BLOCKED");
+		assertThat(audit("REPORT_RESOLVED", dismissReport.toString())).containsEntry("outcome", "DISMISSED")
+			.containsEntry("reason", "zararsız menü");
+		assertThat(adminPage("/admin/reports")).doesNotContain(reported.get("code")).doesNotContain(harmless.get("code"));
+		// A closed report cannot be closed again.
+		adminPost("/admin/reports/" + dismissReport + "/dismiss", "ikinci kez")
+			.andExpect(flash().attribute("error", "admin.error.not-found"));
+	}
+
+	@Test
 	void actionsNeedTheSecondFactor() throws Exception {
 		Map<String, String> link = createLink("https://example.com/d");
 		// The administrator's password-only panel session, presented as an admin session.
@@ -257,6 +294,11 @@ class AdminModerationIntegrationTests {
 			.cookie(this.owner)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(body);
+	}
+
+	private UUID reportId(String code) {
+		return this.jdbc.queryForObject("select id from abuse_reports where code = ? and status = 'OPEN'", UUID.class,
+				code);
 	}
 
 	private UUID userId(String email) {

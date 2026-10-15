@@ -1,4 +1,4 @@
-package io.vurli.abuse;
+package io.vurli.audit;
 
 import java.sql.Timestamp;
 import java.time.Clock;
