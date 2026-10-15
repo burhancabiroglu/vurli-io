@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import io.vurli.TestcontainersConfiguration;
 import io.vurli.link.internal.CodeGenerator;
 import io.vurli.link.internal.LinkCache;
+import io.vurli.link.internal.LinkProperties;
 import io.vurli.link.internal.LinkRepository;
 import io.vurli.link.internal.TargetUrlValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +55,9 @@ class LinkManagementIntegrationTests {
 
 	@Autowired
 	private LinkCache linkCache;
+
+	@Autowired
+	private LinkProperties linkProperties;
 
 	@Autowired
 	private JdbcTemplate jdbc;
@@ -214,7 +218,7 @@ class LinkManagementIntegrationTests {
 		Deque<String> queue = new ArrayDeque<>(List.of(codes));
 		CodeGenerator generator = queue::removeFirst;
 		return new LinkManagement(this.linkRepository, this.transactionManager, this.targetUrlValidator, generator,
-				this.linkCache, Clock.fixed(now, ZoneOffset.UTC));
+				this.linkCache, this.linkProperties, Clock.fixed(now, ZoneOffset.UTC));
 	}
 
 	private int countLinksWithCode(String code) {

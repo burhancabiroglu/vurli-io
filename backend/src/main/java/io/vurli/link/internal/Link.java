@@ -115,9 +115,9 @@ public class Link {
 		this.updatedAt = stored(now);
 	}
 
-	public LinkView toView() {
-		return new LinkView(this.id, this.code, this.targetUrl, this.status, this.expiresAt, this.createdAt,
-				this.version);
+	public LinkView toView(LinkProperties properties) {
+		return new LinkView(this.id, this.code, properties.shortUrl(this.code), this.targetUrl, this.status,
+				this.expiresAt, this.createdAt, this.version);
 	}
 
 	/**

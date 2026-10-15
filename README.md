@@ -2,7 +2,7 @@
 
 Küçük işletmeler ve içerik üreticileri için güvenli link kısaltma servisi. Java ve Spring Boot ile geliştiriliyor. Alan adı: **vurli.io**.
 
-**Durum (2026-10-15):** M1 (link çekirdeği) tamamlandı: link oluşturma, güvenli yönlendirme, yönetim ve engelleme testlerle doğrulandı. Sıradaki kilometre taşı M2: hesaplar ve panel. Ayrıntı: [ilerleme](docs/progress.md).
+**Durum (2026-10-15):** M1 (link çekirdeği) ve M2 (hesaplar ve kullanıcı paneli) tamamlandı: kayıttan QR indirmeye kadar bütün akış tarayıcıda çalışıyor ve uçtan uca testle doğrulanıyor. Sıradaki kilometre taşı M3: istatistik ve kötüye kullanım. Ayrıntı: [ilerleme](docs/progress.md).
 
 ## Belgeler
 
@@ -37,7 +37,7 @@ Yerelde çalıştır. Spring Boot kökteki `compose.yaml` ile PostgreSQL ve Mail
 cd backend && ./gradlew bootRun
 ```
 
-`bootRun` uygulamayı `dev` profiliyle açar. Panel ekranları gelene kadar (M2 dilim 3) API `curl` ile denenebilir. Değişiklik isteklerinde `X-Vurli-Client` başlığı zorunlu.
+`bootRun` uygulamayı `dev` profiliyle açar; kısa linkler de `localhost:8080` üzerinden çalışır. API panelden bağımsız olarak `curl` ile de denenebilir. Değişiklik isteklerinde `X-Vurli-Client` başlığı zorunlu.
 
 Kayıt ol; doğrulama e-postası http://localhost:8025 adresindeki Mailpit'e düşer:
 
@@ -67,7 +67,7 @@ curl -s -b cookies.txt -X POST localhost:8080/api/v1/links -H 'X-Vurli-Client: c
 curl -i localhost:8080/deneme
 ```
 
-Diğer uç noktalar `AuthController` (`/api/v1/auth`: çıkış, `/me`, şifre sıfırlama) ve `LinkApiController` (`/api/v1/links`: liste, hedef ve süre değiştirme, kapatma, açma, silme) içinde. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
+Diğer uç noktalar `AuthController` (`/api/v1/auth`: çıkış, `/me`, şifre sıfırlama) ve `LinkApiController` (`/api/v1/links`: liste, QR, hedef ve süre değiştirme, kapatma, açma, silme) içinde. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
 
 ### Frontend
 
@@ -91,6 +91,16 @@ CI'daki kontrollerin aynısı:
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
+Uçtan uca testler (Playwright) gerçek sisteme karşı çalışır: backend `bootRun` ile ve Mailpit açık olmalı, panelin production build'ini Playwright kendisi başlatır. İlk seferde tarayıcıyı indir:
+
+```bash
+cd frontend && npx playwright install chromium
+```
+
+```bash
+cd frontend && npm run build && npm run e2e
+```
+
 ### CI
 
-Her push ve PR'da yalnızca değişen tarafın işi çalışır: [backend.yml](.github/workflows/backend.yml) ve [frontend.yml](.github/workflows/frontend.yml).
+Her push ve PR'da yalnızca değişen tarafın işi çalışır: [backend.yml](.github/workflows/backend.yml) ve [frontend.yml](.github/workflows/frontend.yml). [e2e.yml](.github/workflows/e2e.yml) iki tarafın her değişikliğinde bütün sistemi ayağa kaldırıp uçtan uca testleri çalıştırır.

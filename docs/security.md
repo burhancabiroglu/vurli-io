@@ -27,7 +27,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Her link sorgusu oturumdaki kullanıcının workspace'iyle filtrelenir. Workspace kimliği istekten alınmaz.
 - Başka bir workspace'e ait kaynak istendiğinde `404` döner.
 
-**Test:** İki hesap açılır. A hesabı, B'nin link ID'siyle okuma, düzenleme, silme, istatistik ve QR işlemlerini dener; hepsi `404` almalı. Yeni eklenen her endpoint bu teste dahil edilir.
+**Test:** İki hesap açılır. A hesabı, B'nin link ID'siyle okuma, düzenleme, silme, istatistik ve QR işlemlerini dener; hepsi `404` almalı. Yeni eklenen her endpoint bu teste dahil edilir. *Uygulandı* (`LinkApiTests`: okuma, hedef, kapatma, silme, liste ve QR; istatistik M3'te eklenecek).
 
 ## 3. Hesap ele geçirme
 
@@ -55,7 +55,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 - Hedef her zaman veritabanındaki kayıttır ve istek parametresiyle değişmez. Açık yönlendirme yoktur.
 - Kullanıcı bilgisi içeren URL'ler, `javascript:` ve `data:` şemaları, IP adresleri ve `vurli.io`'ya geri dönen linkler reddedilir.
-- `Host` başlığına güvenilmez; yalnızca tanımlı host'lar işlenir. Caddy dışından gelen proxy başlıkları dikkate alınmaz.
+- `Host` başlığına güvenilmez; yalnızca tanımlı host'lar işlenir. Kısa linkler yalnızca kısa link host'unda, API ve health yalnızca iç ağ host'unda yanıt verir; API kısa link alan adı üzerinden hiçbir yolla açılmaz. Proxy başlıkları (`X-Forwarded-*`) dikkate alınmaz. *Uygulandı* (`HostFilter`; `RedirectIntegrationTests`: yabancı host, `vurli.io.evil.com`, `//api/...`; filtre bozulunca testler başarısız oluyor).
 - `Location` başlığına normalize edilmiş URL yazılır; CR/LF karakterleri içeremez.
 
 **Test:** URL doğrulayıcı geniş bir sınır değer setiyle test edilir: Unicode ve punycode host'lar, encode edilmiş karakterler, IPv6, kullanıcı bilgisi ve aşırı uzun URL'ler.
@@ -71,6 +71,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Kullanıcı panelinde CSRF koruması iki katmanlı: Next.js'te `SameSite=Lax` çerez ve `Origin` kontrolü; Spring API'de her değişiklik isteğinde zorunlu `X-Vurli-Client` başlığı (OWASP'ın "custom request header" savunması; API CORS izni vermez). Yönetici panelinde Spring Security CSRF koruması açık olacak (M3).
 - Oturum çerezi host-only, `Secure`, `HttpOnly` ve `SameSite=Lax`'tır. Kısa link alan adı (`vurli.io`) oturum çerezini hiç görmez.
 - **Spring API internete açık değildir.** Yalnızca iç ağdan, Next.js'ten gelen istekleri kabul eder. Bu ek bir savunma katmanıdır, tek başına güvenlik değildir: Next.js'in uç noktaları da dışa açık olduğu için her yetki kararı Spring'de verilir.
+- Panel formlarından gelen link kimliği API yoluna girmeden önce UUID olarak doğrulanır; böylece `../auth/logout` gibi bir değer başka bir uç noktaya ulaşamaz (`lib/links.test.ts`). *Uygulandı.*
 - Next.js tarayıcıdan gelen çerezi yalnızca Spring'e iletir; başka bir adrese istek atarken çerez taşımaz. Spring'in adresi yapılandırmadan gelir, istekten alınmaz (SSRF'ye karşı).
 
 **Testler:**

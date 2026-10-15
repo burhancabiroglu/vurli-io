@@ -81,7 +81,7 @@ GET /{kod}                                  (RedirectController → LinkResolver
 - Ziyaretçinin query string'i hedefe eklenmez.
 - Süre sonu, cache'teki kayıt üzerinde her istekte o anki saate göre hesaplanır.
 - Sunucu hedef siteyi hiçbir zaman ziyaret etmez. Web Risk kontrolü URL'yi Google'a sorar, siteyi açmaz; bu yüzden SSRF yüzeyi yoktur.
-- Yalnızca tanımlı host'lar (`vurli.io`, `app.vurli.io`) işlenecek; başka bir `Host` başlığı `404` alacak. Henüz uygulanmadı; panel ayrı host'a taşınırken (M2) eklenecek.
+- Spring yalnızca tanımlı host'larda yanıt verir (`HostFilter`, bütün filtrelerden önce). Tek segmentli yollar (`/`, `/{kod}`) yalnızca kısa link host'unda (`vurli.hosts.public`, canlıda `vurli.io`), geri kalan her şey (API, health) yalnızca iç ağ host'unda (`vurli.hosts.internal`) işlenir. Başka bir `Host` gövdesiz `404` alır; oturum yüklenmez. Bilinmeyen yollar iç ağa sayıldığı için `vurli.io//api/...` gibi hileler API'ye ulaşamaz. Canlı ortamın iç host adı M4'te eklenir.
 - Rezerve adlar `AliasPolicy` içinde tanımlı (`app`, `api`, `admin`, `login`, `actuator`, `abuse` ve benzerleri).
 - Kimlik doğrulaması gerekmeyen yollar yalnızca tek segmentli `GET`/`HEAD` istekleri ve `/actuator/health`. Geri kalan her şey girişe yönlendirilir.
 
@@ -122,7 +122,10 @@ Commit'ten önce kararı verilmiş, yanıtı yolda olan bir yönlendirme geri al
    - Ardından `INSERT` yapılır. Unique ihlali olursa özel adda "bu ad alınmış" hatası döner; rastgele kodda en fazla 3 kez yeniden denenir.
    - Kodun tekliğini veritabanı constraint'i (`uk_links_code`) garanti eder. "Önce kontrol et, sonra yaz" yaklaşımı eşzamanlı isteklerde çift kayda yol açar. Constraint hatası Postgres'te transaction'ı geçersiz kıldığı için her deneme kendi transaction'ında yapılır.
 
-QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böylece hedef değişse de basılı QR geçerli kalır.
+- Liste en yeniden eskiye, sayfalıdır (en fazla 100) ve sayım sorgusu yapmaz; bir satır fazla okuyarak sonraki sayfa olup olmadığını (`hasNext`) söyler.
+- Yanıtlar kısa linkin tam adresini (`shortUrl`) taşır; başı `vurli.short-base-url` ayarından gelir.
+
+QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böylece hedef değişse de basılı QR geçerli kalır. Hata düzeltme seviyesi M (yaklaşık %15 hasara dayanır), standardın istediği 4 modüllük sessiz alan var. PNG yaklaşık 1000 piksel; SVG yalnızca sayılardan oluşan tek bir path, yani kullanıcı girdisi taşımaz. Uç nokta: `GET /api/v1/links/{id}/qr?format=png|svg` (workspace kapsamlı, indirme olarak).
 
 ## Tıklama kaydı
 
@@ -134,10 +137,11 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 
 ## Kullanıcı paneli (Next.js BFF)
 
-`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; dil `Accept-Language`'den seçilir, metinler `src/lib/i18n/dictionaries` altında (K40). Hesap ekranları uygulandı (M2 dilim 3); link ekranları dilim 4'te.
+`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; dil `Accept-Language`'den seçilir, metinler `src/lib/i18n/dictionaries` altında (K40). Hesap ekranları (M2 dilim 3) ve link ekranları (dilim 4) uygulandı: ana sayfada oluşturma formu ve sayfalı liste; `/links/{id}` sayfasında kopyalama, QR önizleme ve indirme, hedef ve bitiş tarihi değiştirme, kapatma/açma ve onaylı silme.
 
 - **Yapı:** `src/lib/api.ts` Spring'e konuşan tek yer (`server-only`). `src/app/actions/auth.ts` form işlemlerini yapan server action'lar. `src/lib/session.ts` her sayfada kullanıcıyı Spring'in `/me` uç noktasına sorar. `src/proxy.ts` CSP nonce'u üretir ve çerez yoksa `/login`'e yönlendirir.
 - **Render:** bütün sayfalar dinamik; `cacheComponents` kapalı (K39).
+- **Link işlemleri:** `src/app/actions/links.ts`. Formlar linkin kimliğini ve son görülen sürümü gizli alanda taşır; ikisi de tarayıcıdan geldiği için API yoluna girmeden önce biçimleri kontrol edilir (UUID ve tamsayı, `lib/links.ts`), yetki ve sürüm kararı Spring'de. Değişiklikten veya sürüm çakışmasından sonra sayfa güncel veriyle yeniden çizilir. Bitiş tarihi tarayıcının saat diliminde seçilir ve UTC an olarak gönderilir. QR `src/app/links/[id]/qr/route.ts` üzerinden Spring'den aktarılır.
 
 - **Kim neye sahip:** kimlik, yetki ve verinin tek sahibi Spring'dir. Next.js yalnızca ekranı üretir ve Spring'in `/api/v1` uç noktalarını sunucu tarafında çağırır; iş kuralı içermez, veritabanına bağlanmaz.
 - **Oturum:** giriş isteğini Next.js Spring'e iletir. Spring oturumu açar (Spring Session JDBC) ve oturum kimliğini döndürür. Next.js `Set-Cookie`'den yalnızca kimliğin değerini alır ve çerezi kendi bayraklarıyla yeniden yazar; Spring'den gelen bayraklara güvenmez. Sonraki isteklerde tarayıcının çerezlerinden yalnızca `VURLI_SESSION`'ı Spring'e iletir. Tarayıcıda JavaScript'in okuyabildiği bir token yoktur. Spring'in adresi `VURLI_API_URL` ortam değişkeninden gelir (yalnızca sunucuda) ve istekte yalnızca `/api/v1/` yollarına izin verilir.

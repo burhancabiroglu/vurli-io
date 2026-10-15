@@ -18,6 +18,8 @@
 - Schema changes go only through Flyway migrations in `backend/src/main/resources/db/migration`. Hibernate is set to `validate`.
 - `./gradlew bootRun` uses the `dev` profile and starts the root `compose.yaml` (PostgreSQL, Mailpit on http://localhost:8025). If one of those containers already runs, Spring does not start the others; run `docker compose up -d` from the root then.
 - The JSON API lives under `/api/v1` and needs a session (except register, login, verify-email and password reset). State-changing requests must send the `X-Vurli-Client` header (CSRF defence, see `ClientHeaderFilter`). The session cookie is defined in `SessionCookieConfiguration`, not in `server.servlet.session.*` properties.
+- `HostFilter` answers short links (single-segment paths) only on `vurli.hosts.public` and everything else only on `vurli.hosts.internal`. Tests run without the dev profile, so short-link requests use `http://vurli.io/...` and API requests the default `localhost`.
+- End-to-end tests: `cd frontend && npm run build && npm run e2e` (Playwright) with the backend running via `bootRun`; they read real emails from Mailpit. The `E2E` workflow runs them in CI.
 - Integration tests send real emails to a Mailpit container; read them with the `Mailpit` test helper. `TestAccounts` registers, verifies and signs in users the way a user would.
 - Account responses must never reveal whether an address has an account.
 - Every change to a link must invalidate `LinkCache` after its transaction commits.

@@ -1,5 +1,6 @@
 package io.vurli.link.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
 
 import com.jayway.jsonpath.JsonPath;
 import io.vurli.ClientHeaderFilter;
@@ -52,7 +55,8 @@ class LinkApiTests {
 			.getContentAsString();
 		String id = JsonPath.read(body, "$.id");
 		String code = JsonPath.read(body, "$.code");
-		this.mvc.perform(get("/" + code))
+		assertThat((String) JsonPath.read(body, "$.shortUrl")).isEqualTo("https://vurli.io/" + code);
+		this.mvc.perform(get("http://vurli.io/" + code))
 			.andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/menu"));
 
 		this.mvc.perform(json(put("/api/v1/links/" + id + "/target"), session,
@@ -65,7 +69,7 @@ class LinkApiTests {
 		this.mvc.perform(delete("/api/v1/links/" + id).queryParam("version", "1")
 			.header(ClientHeaderFilter.HEADER, "test")
 			.cookie(session)).andExpect(status().isNoContent());
-		this.mvc.perform(get("/" + code)).andExpect(status().isGone());
+		this.mvc.perform(get("http://vurli.io/" + code)).andExpect(status().isGone());
 	}
 
 	@Test
@@ -100,11 +104,60 @@ class LinkApiTests {
 		this.mvc.perform(delete("/api/v1/links/" + id).queryParam("version", "0")
 			.header(ClientHeaderFilter.HEADER, "test")
 			.cookie(other)).andExpect(status().isNotFound());
-		this.mvc.perform(get("/api/v1/links").cookie(other)).andExpect(jsonPath("$.length()").value(0));
+		this.mvc.perform(get("/api/v1/links/" + id + "/qr").cookie(other))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.code").value("link_not_found"));
+		this.mvc.perform(get("/api/v1/links").cookie(other)).andExpect(jsonPath("$.items.length()").value(0));
 
 		this.mvc.perform(get("/api/v1/links/" + id).cookie(owner))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.targetUrl").value("https://example.com/private"));
+	}
+
+	@Test
+	void qrCodeDownloadsAsPngOrSvg() throws Exception {
+		Cookie session = verifiedSession();
+		String body = this.mvc.perform(json(post("/api/v1/links"), session,
+				"{\"targetUrl\": \"https://example.com/menu\", \"alias\": \"qr-" + UUID.randomUUID().toString().substring(0, 8) + "\"}"))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		String id = JsonPath.read(body, "$.id");
+		String code = JsonPath.read(body, "$.code");
+
+		byte[] png = this.mvc.perform(get("/api/v1/links/" + id + "/qr").cookie(session))
+			.andExpect(status().isOk())
+			.andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/png"))
+			.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vurli-" + code + ".png\""))
+			.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+			.andReturn()
+			.getResponse()
+			.getContentAsByteArray();
+		assertThat(png).startsWith(0x89, 'P', 'N', 'G');
+		this.mvc.perform(get("/api/v1/links/" + id + "/qr").queryParam("format", "svg").cookie(session))
+			.andExpect(status().isOk())
+			.andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/svg+xml"))
+			.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vurli-" + code + ".svg\""));
+		this.mvc.perform(get("/api/v1/links/" + id + "/qr").queryParam("format", "gif").cookie(session))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("invalid_format"));
+	}
+
+	@Test
+	void listTellsWhetherMoreLinksFollow() throws Exception {
+		Cookie session = verifiedSession();
+		for (int i = 0; i < 3; i++) {
+			this.mvc.perform(json(post("/api/v1/links"), session, "{\"targetUrl\": \"https://example.com/" + i + "\"}"))
+				.andExpect(status().isCreated());
+		}
+
+		this.mvc.perform(get("/api/v1/links").queryParam("size", "2").cookie(session))
+			.andExpect(jsonPath("$.items.length()").value(2))
+			.andExpect(jsonPath("$.hasNext").value(true));
+		this.mvc.perform(get("/api/v1/links").queryParam("page", "1").queryParam("size", "2").cookie(session))
+			.andExpect(jsonPath("$.items.length()").value(1))
+			.andExpect(jsonPath("$.hasNext").value(false));
 	}
 
 	@Test

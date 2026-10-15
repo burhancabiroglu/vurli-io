@@ -13,6 +13,8 @@ function apiBaseUrl(): string {
   return process.env.VURLI_API_URL ?? "http://localhost:8080";
 }
 
+type ApiPath = `/api/v1/${string}`;
+
 export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; status: number; error: string };
 
 /**
@@ -20,9 +22,39 @@ export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; 
  * the session cookie is forwarded; the browser never talks to Spring itself.
  */
 export async function api<T = unknown>(
-  path: `/api/v1/${string}`,
+  path: ApiPath,
   init: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {},
 ): Promise<ApiResult<T>> {
+  const response = await send(path, init.method ?? "GET", init.body);
+  const text = await response.text();
+  const body = text ? safeJson(text) : null;
+  if (response.ok) {
+    return { ok: true, status: response.status, data: body as T };
+  }
+  return { ok: false, status: response.status, error: errorKeyFrom(body) };
+}
+
+export type ApiFile = { contentType: string; disposition: string | null; content: ArrayBuffer };
+
+/** A binary download such as a QR code; only the headers a download needs are kept. */
+export async function apiFile(path: ApiPath): Promise<ApiResult<ApiFile>> {
+  const response = await send(path, "GET");
+  if (!response.ok) {
+    const text = await response.text();
+    return { ok: false, status: response.status, error: errorKeyFrom(text ? safeJson(text) : null) };
+  }
+  return {
+    ok: true,
+    status: response.status,
+    data: {
+      contentType: response.headers.get("Content-Type") ?? "application/octet-stream",
+      disposition: response.headers.get("Content-Disposition"),
+      content: await response.arrayBuffer(),
+    },
+  };
+}
+
+async function send(path: ApiPath, method: string, body?: unknown): Promise<Response> {
   const cookieStore = await cookies();
   const headers = new Headers({
     Accept: "application/json",
@@ -33,24 +65,16 @@ export async function api<T = unknown>(
   if (session) {
     headers.set("Cookie", `${SESSION_COOKIE}=${session}`);
   }
-  if (init.body !== undefined) {
+  if (body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
-
-  const response = await fetch(new URL(path, apiBaseUrl()), {
-    method: init.method ?? "GET",
+  return fetch(new URL(path, apiBaseUrl()), {
+    method,
     headers,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
     cache: "no-store",
     redirect: "manual",
   });
-
-  const text = await response.text();
-  const body = text ? safeJson(text) : null;
-  if (response.ok) {
-    return { ok: true, status: response.status, data: body as T };
-  }
-  return { ok: false, status: response.status, error: errorKeyFrom(body) };
 }
 
 /**

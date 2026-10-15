@@ -29,6 +29,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class RedirectIntegrationTests {
 
+	/** Short links answer on the public host only (vurli.hosts.public). */
+	private static final String SHORT = "http://vurli.io";
+
 	@Autowired
 	private MockMvc mvc;
 
@@ -53,7 +56,7 @@ class RedirectIntegrationTests {
 	void activeLinkRedirectsWithoutCachingOrSession() throws Exception {
 		LinkView link = create("https://example.com/menu?table=4");
 
-		this.mvc.perform(get("/" + link.code()))
+		this.mvc.perform(get(SHORT + "/" + link.code()))
 			.andExpect(status().isFound())
 			.andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/menu?table=4"))
 			.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
@@ -64,7 +67,7 @@ class RedirectIntegrationTests {
 	void headGetsTheSameRedirectWithoutBody() throws Exception {
 		LinkView link = create("https://example.com/menu");
 
-		this.mvc.perform(head("/" + link.code()))
+		this.mvc.perform(head(SHORT + "/" + link.code()))
 			.andExpect(status().isFound())
 			.andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/menu"))
 			.andExpect(content().string(""));
@@ -74,14 +77,14 @@ class RedirectIntegrationTests {
 	void visitorQueryStringIsNotForwarded() throws Exception {
 		LinkView link = create("https://example.com/menu");
 
-		this.mvc.perform(get("/" + link.code()).queryParam("target", "https://evil.com"))
+		this.mvc.perform(get(SHORT + "/" + link.code()).queryParam("target", "https://evil.com"))
 			.andExpect(status().isFound())
 			.andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/menu"));
 	}
 
 	@Test
 	void unknownCodeIsNotFound() throws Exception {
-		this.mvc.perform(get("/yok-boyle-bir-link"))
+		this.mvc.perform(get(SHORT + "/yok-boyle-bir-link"))
 			.andExpect(status().isNotFound())
 			.andExpect(header().doesNotExist(HttpHeaders.LOCATION))
 			.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
@@ -99,7 +102,7 @@ class RedirectIntegrationTests {
 		this.jdbc.update("update links set expires_at = now() - interval '1 second' where id = ?", expired.id());
 
 		for (LinkView link : new LinkView[] { disabled, blocked, deleted, expired }) {
-			this.mvc.perform(get("/" + link.code()))
+			this.mvc.perform(get(SHORT + "/" + link.code()))
 				.andExpect(status().isGone())
 				.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
 		}
@@ -108,11 +111,11 @@ class RedirectIntegrationTests {
 	@Test
 	void creatingALinkClearsACachedMiss() throws Exception {
 		String alias = "kampanya-" + UUID.randomUUID().toString().substring(0, 8);
-		this.mvc.perform(get("/" + alias)).andExpect(status().isNotFound());
+		this.mvc.perform(get(SHORT + "/" + alias)).andExpect(status().isNotFound());
 
 		this.linkManagement.create(this.workspaceId, new CreateLinkRequest("https://example.com/yeni", alias, null));
 
-		this.mvc.perform(get("/" + alias))
+		this.mvc.perform(get(SHORT + "/" + alias))
 			.andExpect(status().isFound())
 			.andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/yeni"));
 	}
@@ -120,26 +123,26 @@ class RedirectIntegrationTests {
 	@Test
 	void ownerChangesTakeEffectOnTheNextVisit() throws Exception {
 		LinkView link = create("https://example.com/old");
-		this.mvc.perform(get("/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/old"));
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/old"));
 
 		LinkView changed = this.linkManagement.changeTarget(this.workspaceId, link.id(), 0, "https://example.com/new");
-		this.mvc.perform(get("/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/new"));
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/new"));
 
 		LinkView disabled = this.linkManagement.disable(this.workspaceId, link.id(), changed.version());
-		this.mvc.perform(get("/" + link.code())).andExpect(status().isGone());
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isGone());
 
 		this.linkManagement.enable(this.workspaceId, link.id(), disabled.version());
-		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isFound());
 	}
 
 	@Test
 	void blockTakesEffectOnTheNextVisit() throws Exception {
 		LinkView link = create("https://example.com/phishing");
-		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isFound());
 
 		this.linkModeration.block(link.id());
 
-		this.mvc.perform(get("/" + link.code()))
+		this.mvc.perform(get(SHORT + "/" + link.code()))
 			.andExpect(status().isGone())
 			.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
 	}
@@ -147,22 +150,46 @@ class RedirectIntegrationTests {
 	@Test
 	void deletedLinkIsGoneOnTheNextVisit() throws Exception {
 		LinkView link = create("https://example.com/menu");
-		this.mvc.perform(get("/" + link.code())).andExpect(status().isFound());
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isFound());
 
 		this.linkManagement.delete(this.workspaceId, link.id(), 0);
 
-		this.mvc.perform(get("/" + link.code())).andExpect(status().isGone());
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isGone());
 	}
 
 	@Test
-	void healthIsPublic() throws Exception {
-		this.mvc.perform(get("/actuator/health")).andExpect(status().isOk());
+	void healthAnswersOnTheInternalHostOnly() throws Exception {
+		this.mvc.perform(get("http://localhost/actuator/health")).andExpect(status().isOk());
+		this.mvc.perform(get(SHORT + "/actuator/health")).andExpect(status().isNotFound());
 	}
 
 	@Test
 	void unknownPathsAreDenied() throws Exception {
 		this.mvc.perform(get("/some/other/path")).andExpect(status().isForbidden());
 		this.mvc.perform(get("/dev/api/links")).andExpect(status().isForbidden());
+	}
+
+	@Test
+	void shortLinksAnswerOnThePublicHostOnly() throws Exception {
+		LinkView link = create("https://example.com");
+
+		this.mvc.perform(get(SHORT + "/" + link.code())).andExpect(status().isFound());
+		this.mvc.perform(get("http://VURLI.IO:443/" + link.code())).andExpect(status().isFound());
+		for (String host : new String[] { "http://evil.com", "http://localhost", "http://vurli.io.evil.com" }) {
+			this.mvc.perform(get(host + "/" + link.code()))
+				.andExpect(status().isNotFound())
+				.andExpect(header().doesNotExist(HttpHeaders.LOCATION))
+				.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+		}
+	}
+
+	@Test
+	void apiIsUnreachableThroughThePublicHost() throws Exception {
+		for (String path : new String[] { "/api/v1/links", "//api/v1/links", "/api/v1/auth/me", "/actuator/health" }) {
+			this.mvc.perform(get(SHORT + path))
+				.andExpect(status().isNotFound())
+				.andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+		}
 	}
 
 	@Test

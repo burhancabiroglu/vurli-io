@@ -3,6 +3,9 @@ package io.vurli.link;
 import java.time.Instant;
 import java.util.UUID;
 
-public record LinkView(UUID id, String code, String targetUrl, LinkStatus status, Instant expiresAt,
-		Instant createdAt, long version) {
+/**
+ * @param shortUrl the full short link, e.g. {@code https://vurli.io/kafe-menu}
+ */
+public record LinkView(UUID id, String code, String shortUrl, String targetUrl, LinkStatus status,
+		Instant expiresAt, Instant createdAt, long version) {
 }

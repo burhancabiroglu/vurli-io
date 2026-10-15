@@ -4,22 +4,49 @@ Son güncelleme: 2026-10-15
 
 ## Şu an
 
-M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`. **M2 (hesaplar ve kullanıcı paneli) devam ediyor**:
+M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. M2 dilimleri:
 
-1. Monorepo ve altyapı: tamamlandı (`d3b5c10`, CI yeşil).
-2. Hesaplar (Spring): tamamlandı (`cf19570`, CI yeşil).
-3. Panel iskeleti (Next.js): tamamlandı (aşağıdaki kayıt).
-4. Link ekranları: sırada.
+1. Monorepo ve altyapı (`d3b5c10`).
+2. Hesaplar, Spring (`cf19570`).
+3. Panel iskeleti, Next.js (`3b6be32`).
+4. Link ekranları, Host kontrolü ve uçtan uca testler (aşağıdaki kayıt).
 
 ## Sıradaki adım
 
-1. Dilim 3 commit'inin Frontend CI sonucunu kontrol et.
-2. Dilim 4, link ekranları:
-   - Panelde link listesi, oluşturma, düzenleme (sürüm kontrollü), kapatma, silme ve QR indirme.
-   - Spring'e `Host` başlığı kontrolü.
-   - Playwright ile en az bir uçtan uca test (kayıttan link oluşturmaya); bu dilime kadar tarayıcı kontrolleri elle yapıldı.
+1. Dilim 4 commit'inin üç CI işini (Backend, Frontend, E2E) kontrol et. E2E iş akışı yeni; ilk çalışmada sorun çıkarsa log'u artifact olarak saklanıyor.
+2. M3, istatistik ve kötüye kullanım ([yol haritası](roadmap.md)). Önce dilimlere bölünmeli; giriş, kayıt ve link oluşturmadaki hız sınırları (A04) en öncelikli parça, çünkü kayıt uç noktası şu an başkalarının adreslerine e-posta göndermek için kötüye kullanılabilir.
 
 ## Kayıt
+
+### 2026-10-15 — M2 dilim 4: link ekranları
+
+- Spring:
+  - `HostFilter` (bütün filtrelerden önce): tek segmentli yollar yalnızca `vurli.hosts.public`'te, geri kalan her şey yalnızca `vurli.hosts.internal`'da işleniyor; diğer host'lar gövdesiz 404 alıyor. Dev profilinde ikisi de `localhost`.
+  - Liste artık `LinkPage` döndürüyor (`items`, `hasNext`); sayım sorgusu yok, Spring Data `Slice` bir satır fazla okuyor.
+  - Link yanıtlarında `shortUrl` (başı `vurli.short-base-url`'den).
+  - QR: `GET /api/v1/links/{id}/qr?format=png|svg`. ZXing `core` 3.5.3 yalnızca modül matrisini üretiyor; PNG ve SVG kendi kodumuzla çiziliyor, ek bağımlılık yok.
+- Panel:
+  - Ana sayfa: oluşturma formu (hedef, özel ad, bitiş tarihi) ve sayfalı liste (durum etiketi, oluşturma zamanı).
+  - `/links/{id}`: kopyala, aç, QR önizleme, PNG/SVG indirme, hedef ve bitiş tarihi değiştirme, kapatma/açma, onaylı silme.
+  - Server action'lar `actions/links.ts`; QR `links/[id]/qr/route.ts` üzerinden aktarılıyor.
+  - Formlardan gelen link kimliği UUID, sürüm tamsayı olarak doğrulanmadan API yoluna girmiyor (`lib/links.ts`).
+  - Bitiş tarihi tarayıcının saat diliminde seçilip UTC an olarak gönderiliyor. Tarihler sunucuda UTC, tarayıcıda yerel saatle gösteriliyor.
+- Uçtan uca testler: Playwright 1.64.0 (1.64.1 bir günlük olduğu için bir önceki sürüm seçildi), `frontend/e2e/`. Yeni `E2E` iş akışı Compose, `bootRun` ve panelin production build'iyle bütün sistemi çalıştırıyor; hata olursa rapor ve backend log'u artifact olarak saklanıyor.
+- Yol üstünde bulunan sorunlar:
+  - **Çakışmada eski değer:** sürüm çakışmasından sonra sayfa yenilendi ve sürüm güncellendi, ama hedef alanı eski değeri göstermeye devam etti; React yalnızca gönderilen formu sıfırlıyor. Alanlar sürüme bağlanarak yeniden çiziliyor; tarayıcıda tekrar denendi.
+  - **Link biçimli butonlar:** `<a>` üzerinde `buttonVariants` çerçeveyi kaybediyordu (`border-transparent` ile `border-border` çakışması). Sınıflar `cn` ile birleştiriliyor.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 185 test, 0 başarısız.
+    - `RedirectIntegrationTests` (+3): kısa link yalnızca `vurli.io`'da (büyük harf ve port kabul); `evil.com`, `localhost`, `vurli.io.evil.com` 404 ve `Location` yok; `vurli.io` üzerinden `/api/v1/links`, `//api/v1/links`, `/api/v1/auth/me` ve health 404, çerez yok.
+    - `QrCodeRendererTests` (6): üretilen PNG ve SVG ZXing okuyucusuyla taranıp kısa URL'ye geri çözülüyor; SVG yalnızca modül path'lerinden oluşuyor; sessiz alan boş.
+    - `LinkApiTests` (+2): QR indirme başlıkları ve `invalid_format`; IDOR testine QR eklendi; `hasNext`.
+    - Negatif kontroller: Host kontrolü kaldırılınca 3 test, yol sınıflandırması önek kontrolüne çevrilince `//api` testi başarısız oldu; kod geri yüklendi.
+  - `cd frontend`: `npm run lint`, `npm run typecheck`, `npm test` (5 dosya, 54 test; yeni `links.test.ts`: yol kaçırma denemeleri, sürüm ayrıştırma, süre sonu sınırı, saat dilimi dönüşümü), `npm run build` ve `npm audit --omit=dev --audit-level=high` (0 açık) geçti.
+  - `npm run e2e` (production build, gerçek backend ve Mailpit): 2 test geçti. Kayıt → e-postadaki linkle doğrulama → giriş → özel adlı link → 302 → PNG indirme (dosya adı ve PNG imzası) → hedef değiştirme → 302 yeni hedefe → listede görünme → kapatma → 410 → silme → 410; konsolda hata yok. Oturumsuz sayfalar `/login`'e gidiyor. Negatif kontrol: QR'ın dosya adı başlığı kaldırılınca test başarısız oldu.
+  - Uygulama içi tarayıcıda (geliştirme modu): `http(s)://` olmayan hedefte Türkçe hata ve alanlar korunuyor; bitiş tarihi 18:30 (İstanbul) olarak seçilip `15:30Z` saklandı ve formda yine 18:30 göründü; başka bir istemci linki değiştirdikten sonra eski sayfadan kapatma çakışma mesajı verdi ve güncel hedef gösterildi; kapatılan link 410; silme listeye döndü; CSP ihlali yok.
+  - `curl` ile: `Host: vurli.io` ile health 404; oturumsuz QR isteği `/login`'e yönlendirme; `..%2fauth%2fme` kimliği 404.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular: dil seçici yok; hedef URL'ye script yerleştirme testi (güvenlik §5) henüz otomatik değil. React metni escape ediyor; doğrulayıcı da `<` veya `"` içeren hedefleri `MALFORMED` ile reddediyor (`curl` ile denendi).
 
 ### 2026-10-15 — M2 dilim 3: panel iskeleti (Next.js)
 

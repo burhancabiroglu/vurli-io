@@ -63,7 +63,7 @@ class LinkLifecycleIntegrationTests {
 			.isThrownBy(() -> this.links.enable(this.workspaceId, id, 0));
 		assertThatExceptionOfType(LinkNotFoundException.class)
 			.isThrownBy(() -> this.links.delete(this.workspaceId, id, 0));
-		assertThat(this.links.list(this.workspaceId, 0, 100)).isEmpty();
+		assertThat(this.links.list(this.workspaceId, 0, 100).items()).isEmpty();
 
 		assertThat(this.links.get(this.otherWorkspaceId, id)).isEqualTo(theirs);
 	}
@@ -208,7 +208,7 @@ class LinkLifecycleIntegrationTests {
 			.isThrownBy(() -> this.links.get(this.workspaceId, link.id()));
 		assertThatExceptionOfType(LinkNotFoundException.class)
 			.isThrownBy(() -> this.links.delete(this.workspaceId, link.id(), 1));
-		assertThat(this.links.list(this.workspaceId, 0, 100)).isEmpty();
+		assertThat(this.links.list(this.workspaceId, 0, 100).items()).isEmpty();
 	}
 
 	@Test
@@ -222,10 +222,18 @@ class LinkLifecycleIntegrationTests {
 			created.add(id);
 		}
 
-		assertThat(this.links.list(this.workspaceId, 0, 10)).extracting(LinkView::id)
-			.containsExactly(created.get(2), created.get(1), created.get(0));
-		assertThat(this.links.list(this.workspaceId, 0, 2)).hasSize(2);
-		assertThat(this.links.list(this.workspaceId, 1, 2)).extracting(LinkView::id).containsExactly(created.get(0));
+		LinkPage all = this.links.list(this.workspaceId, 0, 10);
+		assertThat(all.items()).extracting(LinkView::id).containsExactly(created.get(2), created.get(1), created.get(0));
+		assertThat(all.hasNext()).isFalse();
+
+		LinkPage first = this.links.list(this.workspaceId, 0, 2);
+		assertThat(first.items()).hasSize(2);
+		assertThat(first.hasNext()).isTrue();
+
+		LinkPage second = this.links.list(this.workspaceId, 1, 2);
+		assertThat(second.items()).extracting(LinkView::id).containsExactly(created.get(0));
+		assertThat(second.hasNext()).isFalse();
+		assertThat(this.links.list(this.workspaceId, 0, 3).hasNext()).isFalse();
 	}
 
 	@Test
@@ -234,7 +242,10 @@ class LinkLifecycleIntegrationTests {
 			create("https://example.com/" + i);
 		}
 
-		assertThat(this.links.list(this.workspaceId, 0, 10_000)).hasSize(LinkManagement.MAX_PAGE_SIZE);
+		LinkPage page = this.links.list(this.workspaceId, 0, 10_000);
+		assertThat(page.items()).hasSize(LinkManagement.MAX_PAGE_SIZE);
+		assertThat(page.size()).isEqualTo(LinkManagement.MAX_PAGE_SIZE);
+		assertThat(page.hasNext()).isTrue();
 	}
 
 	@Test

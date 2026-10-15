@@ -1,0 +1,60 @@
+package io.vurli;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Spring serves two audiences on different hosts (K20): visitors of short links on the
+ * public domain, and the Next.js panel and health checks on the internal network. A
+ * request whose {@code Host} does not belong to its audience gets a bare 404 before
+ * sessions or security run.
+ * <p>
+ * Only single-segment paths ({@code /} and {@code /{code}}) are public; everything else
+ * is internal. Classifying unknown paths as internal means a path trick such as
+ * {@code //api/v1/links} cannot reach the API through the public domain.
+ */
+public class HostFilter extends OncePerRequestFilter {
+
+	private final Set<String> publicHosts;
+
+	private final Set<String> internalHosts;
+
+	public HostFilter(Collection<String> publicHosts, Collection<String> internalHosts) {
+		this.publicHosts = normalize(publicHosts);
+		this.internalHosts = normalize(internalHosts);
+	}
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+			throws ServletException, IOException {
+		Set<String> allowed = isPublicPath(request.getRequestURI()) ? this.publicHosts : this.internalHosts;
+		String host = request.getServerName();
+		if (host == null || !allowed.contains(host.toLowerCase(Locale.ROOT))) {
+			response.setStatus(HttpStatus.NOT_FOUND.value());
+			response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+			return;
+		}
+		chain.doFilter(request, response);
+	}
+
+	private static boolean isPublicPath(String path) {
+		return path.startsWith("/") && path.indexOf('/', 1) == -1;
+	}
+
+	private static Set<String> normalize(Collection<String> hosts) {
+		return hosts.stream().map((host) -> host.trim().toLowerCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
+	}
+
+}

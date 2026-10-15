@@ -2,15 +2,22 @@ package io.vurli.link.web;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import io.vurli.account.AccountManagement;
 import io.vurli.account.VurliUser;
 import io.vurli.link.CreateLinkRequest;
 import io.vurli.link.LinkManagement;
+import io.vurli.link.LinkPage;
+import io.vurli.link.LinkQrCodes;
 import io.vurli.link.LinkView;
+import io.vurli.link.QrCode;
+import io.vurli.link.QrFormat;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,10 +42,13 @@ class LinkApiController {
 
 	private final LinkManagement links;
 
+	private final LinkQrCodes qrCodes;
+
 	private final AccountManagement accounts;
 
-	LinkApiController(LinkManagement links, AccountManagement accounts) {
+	LinkApiController(LinkManagement links, LinkQrCodes qrCodes, AccountManagement accounts) {
 		this.links = links;
+		this.qrCodes = qrCodes;
 		this.accounts = accounts;
 	}
 
@@ -53,7 +63,7 @@ class LinkApiController {
 	}
 
 	@GetMapping
-	List<LinkView> list(@AuthenticationPrincipal VurliUser user, @RequestParam(defaultValue = "0") int page,
+	LinkPage list(@AuthenticationPrincipal VurliUser user, @RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
 		return this.links.list(user.workspaceId(), page, size);
 	}
@@ -61,6 +71,25 @@ class LinkApiController {
 	@GetMapping("/{id}")
 	LinkView get(@AuthenticationPrincipal VurliUser user, @PathVariable UUID id) {
 		return this.links.get(user.workspaceId(), id);
+	}
+
+	/** A download of the QR code for the short link; {@code format} is {@code png} or {@code svg}. */
+	@GetMapping("/{id}/qr")
+	ResponseEntity<byte[]> qr(@AuthenticationPrincipal VurliUser user, @PathVariable UUID id,
+			@RequestParam(defaultValue = "png") String format) {
+		QrFormat qrFormat;
+		try {
+			qrFormat = QrFormat.fromExtension(format);
+		}
+		catch (IllegalArgumentException ex) {
+			throw new InvalidQrFormatException();
+		}
+		QrCode qr = this.qrCodes.render(user.workspaceId(), id, qrFormat);
+		return ResponseEntity.ok()
+			.contentType(MediaType.parseMediaType(qr.format().mediaType()))
+			.header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(qr.fileName()).build().toString())
+			.cacheControl(CacheControl.noStore())
+			.body(qr.content());
 	}
 
 	@PutMapping("/{id}/target")
@@ -99,6 +128,14 @@ class LinkApiController {
 	}
 
 	record Versioned(long version) {
+	}
+
+	static class InvalidQrFormatException extends RuntimeException {
+
+		InvalidQrFormatException() {
+			super("Unsupported QR format");
+		}
+
 	}
 
 	static class EmailNotVerifiedException extends RuntimeException {

@@ -24,6 +24,11 @@ class LinkApiExceptionHandler {
 		return problem(HttpStatus.FORBIDDEN, "email_not_verified", null);
 	}
 
+	@ExceptionHandler(LinkApiController.InvalidQrFormatException.class)
+	ProblemDetail invalidQrFormat() {
+		return problem(HttpStatus.BAD_REQUEST, "invalid_format", null);
+	}
+
 	@ExceptionHandler(InvalidTargetUrlException.class)
 	ProblemDetail invalidTarget(InvalidTargetUrlException ex) {
 		return problem(HttpStatus.UNPROCESSABLE_CONTENT, "invalid_target", ex.reason().name());

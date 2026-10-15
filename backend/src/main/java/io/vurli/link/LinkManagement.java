@@ -2,7 +2,6 @@ package io.vurli.link;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -11,6 +10,7 @@ import io.vurli.link.internal.AliasPolicy;
 import io.vurli.link.internal.CodeGenerator;
 import io.vurli.link.internal.Link;
 import io.vurli.link.internal.LinkCache;
+import io.vurli.link.internal.LinkProperties;
 import io.vurli.link.internal.LinkRepository;
 import io.vurli.link.internal.TargetUrlValidator;
 import org.hibernate.exception.ConstraintViolationException;
@@ -18,6 +18,7 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -45,15 +46,19 @@ public class LinkManagement {
 
 	private final LinkCache cache;
 
+	private final LinkProperties properties;
+
 	private final Clock clock;
 
 	public LinkManagement(LinkRepository links, PlatformTransactionManager transactionManager,
-			TargetUrlValidator targetUrlValidator, CodeGenerator codeGenerator, LinkCache cache, Clock clock) {
+			TargetUrlValidator targetUrlValidator, CodeGenerator codeGenerator, LinkCache cache,
+			LinkProperties properties, Clock clock) {
 		this.links = links;
 		this.transaction = new TransactionTemplate(transactionManager);
 		this.targetUrlValidator = targetUrlValidator;
 		this.codeGenerator = codeGenerator;
 		this.cache = cache;
+		this.properties = properties;
 		this.clock = clock;
 	}
 
@@ -96,7 +101,7 @@ public class LinkManagement {
 	 */
 	public LinkView get(UUID workspaceId, UUID linkId) {
 		return this.links.findByIdAndWorkspaceIdAndDeletedAtIsNull(linkId, workspaceId)
-			.map(Link::toView)
+			.map(this::view)
 			.orElseThrow(LinkNotFoundException::new);
 	}
 
@@ -104,13 +109,12 @@ public class LinkManagement {
 	 * Newest first. The page size is capped so a single request cannot load a whole
 	 * workspace.
 	 */
-	public List<LinkView> list(UUID workspaceId, int page, int size) {
+	public LinkPage list(UUID workspaceId, int page, int size) {
 		PageRequest request = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
 				Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
-		return this.links.findByWorkspaceIdAndDeletedAtIsNull(workspaceId, request)
-			.stream()
-			.map(Link::toView)
-			.toList();
+		Slice<Link> slice = this.links.findByWorkspaceIdAndDeletedAtIsNull(workspaceId, request);
+		return new LinkPage(slice.map(this::view).getContent(), request.getPageNumber(), request.getPageSize(),
+				slice.hasNext());
 	}
 
 	/**
@@ -169,7 +173,7 @@ public class LinkManagement {
 					throw new LinkVersionConflictException();
 				}
 				change.accept(link, this.clock.instant());
-				return this.links.saveAndFlush(link).toView();
+				return view(this.links.saveAndFlush(link));
 			});
 		}
 		catch (OptimisticLockingFailureException ex) {
@@ -188,9 +192,8 @@ public class LinkManagement {
 	private Optional<LinkView> insert(UUID workspaceId, String code, String targetUrl, Instant expiresAt,
 			Instant now) {
 		try {
-			LinkView created = this.transaction.execute((status) -> this.links
-				.saveAndFlush(Link.create(workspaceId, code, targetUrl, expiresAt, now))
-				.toView());
+			LinkView created = this.transaction.execute((status) -> view(
+					this.links.saveAndFlush(Link.create(workspaceId, code, targetUrl, expiresAt, now))));
 			// After commit: drops a cached "not found" for this code.
 			this.cache.invalidate(code);
 			return Optional.ofNullable(created);
@@ -201,6 +204,10 @@ public class LinkManagement {
 			}
 			throw ex;
 		}
+	}
+
+	private LinkView view(Link link) {
+		return link.toView(this.properties);
 	}
 
 	private static boolean isCodeConflict(Throwable ex) {
