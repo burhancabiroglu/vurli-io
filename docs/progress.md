@@ -7,21 +7,54 @@ Son güncelleme: 2026-10-15
 M0 ve M1 tamamlandı; repo `burhancabiroglu/vurli-io`. **M2 (hesaplar ve kullanıcı paneli) devam ediyor**:
 
 1. Monorepo ve altyapı: tamamlandı (`d3b5c10`, CI yeşil).
-2. Hesaplar (Spring): tamamlandı (aşağıdaki kayıt).
-3. Panel iskeleti (Next.js): sırada.
-4. Link ekranları.
+2. Hesaplar (Spring): tamamlandı (`cf19570`, CI yeşil).
+3. Panel iskeleti (Next.js): tamamlandı (aşağıdaki kayıt).
+4. Link ekranları: sırada.
 
 ## Sıradaki adım
 
-1. Dilim 2 commit'inin Backend CI sonucunu kontrol et.
-2. Dilim 3, panel iskeleti (Next.js):
-   - Türkçe/İngilizce (next-intl)
-   - Spring'e çerez ve `X-Vurli-Client` başlığı ileten sunucu tarafı istemci
-   - Kayıt, giriş, `verify-email` (token'ı `#token=` fragment'ından okuyup POST eden sayfa), şifre sıfırlama ekranları
-
-   İlk iş: Next.js 16'nın `node_modules/next/dist/docs/` rehberini okumak (`frontend/AGENTS.md`).
+1. Dilim 3 commit'inin Frontend CI sonucunu kontrol et.
+2. Dilim 4, link ekranları:
+   - Panelde link listesi, oluşturma, düzenleme (sürüm kontrollü), kapatma, silme ve QR indirme.
+   - Spring'e `Host` başlığı kontrolü.
+   - Playwright ile en az bir uçtan uca test (kayıttan link oluşturmaya); bu dilime kadar tarayıcı kontrolleri elle yapıldı.
 
 ## Kayıt
+
+### 2026-10-15 — M2 dilim 3: panel iskeleti (Next.js)
+
+- Next.js 16 rehberi (`node_modules/next/dist/docs`) okundu. İki karar çıktı:
+  - `cacheComponents` çerez okuyan her bileşeni `<Suspense>` içine zorluyor ve nonce'lu CSP ile uyumsuz. Panel kullanıcıya özel olduğu için kapatıldı; sayfalar dinamik (K39).
+  - Çok dillilik kütüphanesiz, `Accept-Language` ile (K40).
+- BFF katmanı:
+  - `lib/api.ts` (`server-only`): tarayıcı çerezlerinden yalnızca `VURLI_SESSION`'ı iletir; `X-Vurli-Client` ve dil başlığını ekler; yalnızca `/api/v1/` yollarına izin verir; Spring adresi `VURLI_API_URL`'den gelir.
+  - Girişte Spring'in `Set-Cookie`'sinden yalnızca kimlik değeri alınır, çerez kendi bayraklarımızla yazılır.
+  - `lib/session.ts` kullanıcıyı her istekte Spring'e sorar.
+- Ekranlar: giriş, kayıt, e-posta doğrulama, şifremi unuttum, şifre sıfırlama, panel (doğrulanmamış uyarısı, tekrar gönder, çıkış). Formlar React 19 `useActionState` ile server action kullanıyor.
+- Token sayfaları: token `#token=` fragment'ından `useSyncExternalStore` ile okunuyor ve adres çubuğundan siliniyor. Doğrulama isteği `useRef` korumasıyla bir kez gidiyor.
+- Güvenlik: `src/proxy.ts` her istekte nonce üretip CSP başlığı ekliyor ve çerez yoksa korumalı sayfadan `/login`'e yönlendiriyor (iyimser kontrol). Diğer başlıklar `next.config.ts`'te (K41).
+- Yol üstünde bulunan sorunlar:
+  - **Lint:** React'in `set-state-in-effect` kuralı iki yerde ihlal ediliyordu. Kural kapatılmadı; fragment okuma `useSyncExternalStore`'a, "token yok" durumu render'da türetmeye çevrildi.
+  - **CSP:** geliştirme modunda Next.js geliştirme araçları satır içi stil kullandığı için ihlal veriyordu. Production build'de aynı sayfanın nonce'uyla eşleşen ihlal olmadığı tarayıcıda doğrulandı; satır içi stil izni yalnızca geliştirme moduna verildi.
+  - **Form:** hatalı girişten sonra React 19 formu sıfırlıyor ve e-posta siliniyordu. Hata durumunda e-posta geri döndürülüyor; şifre hiçbir zaman döndürülmüyor.
+- Doğrulama:
+  - `npm run lint`, `npm run typecheck`, `npm test` (Vitest, 4 dosya, 31 test: dil seçimi, `Set-Cookie` ayrıştırma ve sızdırma denemeleri, hata kodu eşleme, CSP, iki sözlüğün aynı anahtarlara sahip olması) ve `npm run build` (bütün sayfalar dinamik) geçti.
+  - Production build'de (`next start`), uygulama içi tarayıcıda, gerçek backend ve Mailpit ile:
+    - oturumsuz `/` → `/login`
+    - kayıt formu → Türkçe "gelen kutunu kontrol et"
+    - doğrulanmadan giriş → panelde uyarı; "tekrar gönder" bir dakika dolmadan Türkçe bekleme mesajı
+    - çerez JavaScript'ten görünmüyor (`HttpOnly`)
+    - doğrulama linki → başarılı, token adres çubuğundan silindi; aynı link tekrar → "geçersiz"
+    - çıkış → şifremi unuttum → e-postadaki link → yeni şifre → `/login?reset=1` bilgi mesajı
+    - eski şifre → Türkçe hata ve e-posta alanda kaldı; yeni şifre → panel
+    - CSP ihlali yok
+  - Geliştirme modunda (Strict Mode): doğrulama linki başarılı, yani token iki kez gönderilmedi; yeni CSP ile ihlal yok.
+  - `curl` ile: `Accept-Language: en-US` → İngilizce, `de-DE` → İngilizce, `lang` özniteliği doğru.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Uçtan uca testler henüz otomatik değil (Playwright dilim 4'te).
+  - Dil seçici yok; dil yalnızca tarayıcıdan geliyor.
+  - `.claude/launch.json` uygulama içi tarayıcı önizlemesi için eklendi.
 
 ### 2026-10-15 — M2 dilim 2: hesaplar (Spring)
 

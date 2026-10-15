@@ -12,7 +12,8 @@
 - Monorepo: `backend/` (Spring Boot, Gradle Kotlin DSL) and `frontend/` (Next.js, npm). Run commands from inside the folder.
 - Backend build and test: `cd backend && ./gradlew build` (the Java 25 toolchain is resolved automatically). It needs Docker running, because Testcontainers starts PostgreSQL 18. `ModularityTests` checks module boundaries. Test counts are in `backend/build/test-results/test/*.xml`.
 - Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && npm run build`. Production dependencies must pass `npm audit --omit=dev --audit-level=high`. Read `frontend/AGENTS.md` before writing Next.js code.
-- The Next.js frontend is a BFF: it holds no business rules and never talks to the database. Every authorization decision is made in Spring.
+- The Next.js frontend is a BFF: it holds no business rules and never talks to the database. Every authorization decision is made in Spring. Only `frontend/src/lib/api.ts` (server-only) calls Spring; pages get the user from `lib/session.ts`. UI text lives in `src/lib/i18n/dictionaries/{tr,en}.json` and both files must keep the same keys (a unit test checks this).
+- Frontend tests: `npm test` (Vitest) for pure logic in `src/lib`. Check pages in a real browser against a running backend; `src/proxy.ts` sets a nonce-based CSP, so watch the console for violations.
 - Modules are the top-level packages under `io.vurli`. A module's base package is its API; subpackages are internal.
 - Schema changes go only through Flyway migrations in `backend/src/main/resources/db/migration`. Hibernate is set to `validate`.
 - `./gradlew bootRun` uses the `dev` profile and starts the root `compose.yaml` (PostgreSQL, Mailpit on http://localhost:8025). If one of those containers already runs, Spring does not start the others; run `docker compose up -d` from the root then.

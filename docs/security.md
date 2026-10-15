@@ -65,7 +65,9 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 **Önlemler:**
 
 - React ve Thymeleaf varsayılan olarak escape eder. `dangerouslySetInnerHTML` ve `th:utext` kullanılmaz. Kullanıcının girdiği hedef URL'ler panelde yalnızca metin olarak gösterilir; tıklanabilir linkler `rel="noopener noreferrer"` taşır.
-- CSP ile script'ler yalnızca kendi origin'imizden yüklenir; Next.js'in gerektirdiği inline script'ler nonce ile izin alır.
+- CSP ile script'ler yalnızca kendi origin'imizden yüklenir; Next.js'in gerektirdiği inline script'ler her istekte yeni üretilen nonce ile izin alır (`src/proxy.ts`). Production'da satır içi stil ve `eval` yasak; `frame-ancestors 'none'`, `form-action 'self'`, `object-src 'none'`. Production sayfası tarayıcıda CSP ihlali olmadan çalıştı. *Uygulandı.*
+- Ek başlıklar: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`; `X-Powered-By` kapalı. *Uygulandı.*
+- E-posta linkindeki token sayfa açılınca okunur ve adres çubuğundan silinir; tarayıcı geçmişinde kalmaz. Doğrulama sayfası token'ı yalnızca bir kez gönderir (React Strict Mode'da da). *Uygulandı.*
 - Kullanıcı panelinde CSRF koruması iki katmanlı: Next.js'te `SameSite=Lax` çerez ve `Origin` kontrolü; Spring API'de her değişiklik isteğinde zorunlu `X-Vurli-Client` başlığı (OWASP'ın "custom request header" savunması; API CORS izni vermez). Yönetici panelinde Spring Security CSRF koruması açık olacak (M3).
 - Oturum çerezi host-only, `Secure`, `HttpOnly` ve `SameSite=Lax`'tır. Kısa link alan adı (`vurli.io`) oturum çerezini hiç görmez.
 - **Spring API internete açık değildir.** Yalnızca iç ağdan, Next.js'ten gelen istekleri kabul eder. Bu ek bir savunma katmanıdır, tek başına güvenlik değildir: Next.js'in uç noktaları da dışa açık olduğu için her yetki kararı Spring'de verilir.

@@ -1,0 +1,64 @@
+{
+  "common": {
+    "brand": "Vurli",
+    "tagline": "Short links you stay in control of.",
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "passwordHint": "At least 10 characters.",
+    "unexpected": "Something went wrong. Please try again."
+  },
+  "login": {
+    "title": "Sign in",
+    "submit": "Sign in",
+    "forgot": "Forgot your password?",
+    "noAccount": "No account yet?",
+    "register": "Create one",
+    "resetDone": "Your password was changed. Please sign in again."
+  },
+  "register": {
+    "title": "Create your account",
+    "submit": "Create account",
+    "haveAccount": "Already have an account?",
+    "login": "Sign in",
+    "sentTitle": "Check your inbox",
+    "sentBody": "If this address can be used, we have sent an email with the next step. The link is valid for 24 hours."
+  },
+  "verify": {
+    "title": "Email verification",
+    "working": "Verifying your email…",
+    "done": "Your email is verified. You can now create links.",
+    "invalid": "This link is invalid, expired or was already used.",
+    "continue": "Go to Vurli"
+  },
+  "forgot": {
+    "title": "Reset your password",
+    "body": "Enter your email and we will send you a link to choose a new password.",
+    "submit": "Send link",
+    "sent": "If this address has an account, we have sent a reset link. It is valid for 1 hour.",
+    "back": "Back to sign in"
+  },
+  "reset": {
+    "title": "Choose a new password",
+    "submit": "Change password",
+    "noToken": "This page needs the link from the reset email."
+  },
+  "dashboard": {
+    "title": "Your links",
+    "signedInAs": "Signed in as {email}",
+    "logout": "Sign out",
+    "unverifiedTitle": "Confirm your email",
+    "unverifiedBody": "We sent a link to {email}. You can create links once your address is verified.",
+    "resend": "Send the email again",
+    "resent": "Sent. Check your inbox.",
+    "placeholder": "Link management arrives in the next step."
+  },
+  "errors": {
+    "invalid_credentials": "Email or password is incorrect.",
+    "invalid_email": "Please enter a valid email address.",
+    "weak_password.TOO_SHORT": "The password must be at least 10 characters long.",
+    "weak_password.TOO_LONG": "The password must be at most 128 characters long.",
+    "invalid_token": "This link is invalid, expired or was already used.",
+    "too_many_emails": "We sent an email moments ago. Please wait a minute before asking again."
+  }
+}

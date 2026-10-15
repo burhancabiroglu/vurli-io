@@ -134,10 +134,14 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 
 ## Kullanıcı paneli (Next.js BFF)
 
-`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; metinler mesaj dosyalarında.
+`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; dil `Accept-Language`'den seçilir, metinler `src/lib/i18n/dictionaries` altında (K40). Hesap ekranları uygulandı (M2 dilim 3); link ekranları dilim 4'te.
+
+- **Yapı:** `src/lib/api.ts` Spring'e konuşan tek yer (`server-only`). `src/app/actions/auth.ts` form işlemlerini yapan server action'lar. `src/lib/session.ts` her sayfada kullanıcıyı Spring'in `/me` uç noktasına sorar. `src/proxy.ts` CSP nonce'u üretir ve çerez yoksa `/login`'e yönlendirir.
+- **Render:** bütün sayfalar dinamik; `cacheComponents` kapalı (K39).
 
 - **Kim neye sahip:** kimlik, yetki ve verinin tek sahibi Spring'dir. Next.js yalnızca ekranı üretir ve Spring'in `/api/v1` uç noktalarını sunucu tarafında çağırır; iş kuralı içermez, veritabanına bağlanmaz.
-- **Oturum:** giriş isteğini Next.js Spring'e iletir. Spring oturumu açar (Spring Session JDBC) ve oturum çerezini döndürür; Next.js bu çerezi tarayıcıya aynen geçirir. Sonraki her istekte Next.js tarayıcıdan gelen çerezi Spring'e iletir. Tarayıcıda JavaScript'in okuyabildiği bir token yoktur.
+- **Oturum:** giriş isteğini Next.js Spring'e iletir. Spring oturumu açar (Spring Session JDBC) ve oturum kimliğini döndürür. Next.js `Set-Cookie`'den yalnızca kimliğin değerini alır ve çerezi kendi bayraklarıyla yeniden yazar; Spring'den gelen bayraklara güvenmez. Sonraki isteklerde tarayıcının çerezlerinden yalnızca `VURLI_SESSION`'ı Spring'e iletir. Tarayıcıda JavaScript'in okuyabildiği bir token yoktur. Spring'in adresi `VURLI_API_URL` ortam değişkeninden gelir (yalnızca sunucuda) ve istekte yalnızca `/api/v1/` yollarına izin verilir.
+- **Yönlendirmeler:** girişten sonra her zaman `/`'e gidilir; istekteki "geri dön" adresi kabul edilmez (açık yönlendirme açığı).
 - **Çerez:** `Secure`, `HttpOnly`, `SameSite=Lax`, host-only (`app.vurli.io`). Kısa link alan adı (`vurli.io`) bu çerezi hiç görmez.
 - **CSRF:** iki katman. Next.js'te `SameSite` çerez ve değişiklik isteklerinde `Origin` kontrolü (server action'larda yerleşik). Spring API'de ise token tabanlı CSRF yerine her değişiklik isteğinde `X-Vurli-Client` başlığı zorunludur (`ClientHeaderFilter`). Başka bir sitenin formu veya linki özel başlık ekleyemez; script'i de CORS ön kontrolü olmadan ekleyemez ve API hiçbir origin'e CORS izni vermez. Spring API ayrıca yalnızca iç ağdan erişilebilir olacak (M4).
 - **Yetki:** Next.js'in uç noktaları da dışa açık bir API'dir. Bu yüzden her yetki kararı Spring'de verilir; Next.js'te gizlenen bir buton güvenlik önlemi sayılmaz.

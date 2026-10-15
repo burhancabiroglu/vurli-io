@@ -77,16 +77,18 @@ Diğer uç noktalar `AuthController` (`/api/v1/auth`: çıkış, `/me`, şifre s
 cd frontend && npm ci
 ```
 
-Geliştirme sunucusu (http://localhost:3000):
+Geliştirme sunucusu (http://localhost:3000). Panel Spring'i `VURLI_API_URL` adresinde arar; varsayılanı `http://localhost:8080`, yani önce backend'i başlat:
 
 ```bash
 cd frontend && npm run dev
 ```
 
+Kayıt ol; doğrulama e-postası http://localhost:8025 adresindeki Mailpit'e düşer, oradaki linke tıklayınca adres doğrulanır.
+
 CI'daki kontrollerin aynısı:
 
 ```bash
-cd frontend && npm run lint && npm run typecheck && npm run build
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
 ### CI

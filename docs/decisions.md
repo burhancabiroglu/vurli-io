@@ -52,6 +52,9 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K36 | Oturum 24 saat hareketsizlikte sona erer | Varsayılan, 2026-10-15 | Panel günlük kullanılır; daha uzun süre çalınan bir çerezin değerini artırır. "Beni hatırla" istenirse ayrıca tasarlanır |
 | K37 | Spring API'de CSRF: token yerine zorunlu `X-Vurli-Client` başlığı + `SameSite=Lax` çerez | Varsayılan, 2026-10-15 | API'nin tek istemcisi BFF; token tabanlı CSRF'i Next.js üzerinden taşımak karmaşık. Özel başlık tarayıcıdan başka bir siteye CORS'suz eklenemez (OWASP) |
 | K38 | E-posta token'ları linkte URL fragment'ında (`#token=`) | Varsayılan, 2026-10-15 | Fragment sunucuya gönderilmez: token erişim loglarına, proxy'lere ve `Referer` başlığına düşmez. Next.js sayfası token'ı okuyup POST ile gönderir |
+| K39 | Panel sayfaları dinamik render edilir; Next.js `cacheComponents` ve `partialPrefetching` kapalı | Varsayılan, 2026-10-15 | Panelin her sayfası kullanıcıya özel. Nonce tabanlı CSP dinamik render gerektiriyor ve Next'in statik kabuk (PPR) yaklaşımıyla uyumsuz (Next.js CSP rehberi) |
+| K40 | Çok dillilik kütüphanesiz: dil `Accept-Language`'den seçilir, sözlükler sunucuda JSON, URL'de dil öneki yok | Varsayılan, 2026-10-15 | Next.js rehberi kütüphane şart koşmuyor; daha az bağımlılık, daha küçük tedarik zinciri. Panel giriş arkasında, arama motoru için dil öneki gerekmiyor. Dil seçici gerekirse çerezle eklenir |
+| K41 | Panelde nonce tabanlı CSP (`src/proxy.ts`); geliştirme modunda yalnızca `unsafe-eval` ve satır içi stile izin | Varsayılan, 2026-10-15 | Script'ler yalnızca kendi kaynağımızdan ve nonce'la çalışır. Geliştirme gevşetmeleri Next.js geliştirme araçları için gerekli; production sayfası tarayıcıda ihlalsiz doğrulandı |
 
 ## Açık sorular
 

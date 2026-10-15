@@ -1,0 +1,64 @@
+{
+  "common": {
+    "brand": "Vurli",
+    "tagline": "Kısa linkler, senin kontrolünde.",
+    "email": "E-posta",
+    "password": "Şifre",
+    "newPassword": "Yeni şifre",
+    "passwordHint": "En az 10 karakter.",
+    "unexpected": "Bir şeyler ters gitti. Lütfen tekrar dene."
+  },
+  "login": {
+    "title": "Giriş yap",
+    "submit": "Giriş yap",
+    "forgot": "Şifreni mi unuttun?",
+    "noAccount": "Hesabın yok mu?",
+    "register": "Hesap oluştur",
+    "resetDone": "Şifren değişti. Lütfen yeniden giriş yap."
+  },
+  "register": {
+    "title": "Hesabını oluştur",
+    "submit": "Hesap oluştur",
+    "haveAccount": "Zaten hesabın var mı?",
+    "login": "Giriş yap",
+    "sentTitle": "Gelen kutunu kontrol et",
+    "sentBody": "Bu adres kullanılabiliyorsa bir sonraki adımı içeren bir e-posta gönderdik. Link 24 saat geçerli."
+  },
+  "verify": {
+    "title": "E-posta doğrulama",
+    "working": "E-posta adresin doğrulanıyor…",
+    "done": "E-posta adresin doğrulandı. Artık link oluşturabilirsin.",
+    "invalid": "Bu link geçersiz, süresi dolmuş ya da daha önce kullanılmış.",
+    "continue": "Vurli'ye git"
+  },
+  "forgot": {
+    "title": "Şifreni sıfırla",
+    "body": "E-posta adresini yaz, sana yeni şifre belirlemen için bir link gönderelim.",
+    "submit": "Link gönder",
+    "sent": "Bu adresin bir hesabı varsa sıfırlama linki gönderdik. Link 1 saat geçerli.",
+    "back": "Girişe dön"
+  },
+  "reset": {
+    "title": "Yeni şifreni belirle",
+    "submit": "Şifreyi değiştir",
+    "noToken": "Bu sayfa, sıfırlama e-postasındaki linkle açılmalı."
+  },
+  "dashboard": {
+    "title": "Linklerin",
+    "signedInAs": "{email} olarak giriş yaptın",
+    "logout": "Çıkış yap",
+    "unverifiedTitle": "E-posta adresini doğrula",
+    "unverifiedBody": "{email} adresine bir link gönderdik. Adresin doğrulanınca link oluşturabilirsin.",
+    "resend": "E-postayı tekrar gönder",
+    "resent": "Gönderildi. Gelen kutunu kontrol et.",
+    "placeholder": "Link yönetimi bir sonraki adımda geliyor."
+  },
+  "errors": {
+    "invalid_credentials": "E-posta veya şifre hatalı.",
+    "invalid_email": "Lütfen geçerli bir e-posta adresi yaz.",
+    "weak_password.TOO_SHORT": "Şifre en az 10 karakter olmalı.",
+    "weak_password.TOO_LONG": "Şifre en fazla 128 karakter olabilir.",
+    "invalid_token": "Bu link geçersiz, süresi dolmuş ya da daha önce kullanılmış.",
+    "too_many_emails": "Az önce bir e-posta gönderdik. Tekrar istemeden önce bir dakika bekle."
+  }
+}
