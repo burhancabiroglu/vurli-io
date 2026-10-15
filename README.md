@@ -75,6 +75,16 @@ curl -i localhost:8080/deneme
 
 Diğer uç noktalar `AuthController` (`/api/v1/auth`: çıkış, `/me`, şifre sıfırlama) ve `LinkApiController` (`/api/v1/links`: liste, QR, hedef ve süre değiştirme, kapatma, açma, silme) içinde. Değişiklik isteklerinde son görülen `version` gönderilir; uyuşmazsa 409 döner.
 
+### Yönetici paneli
+
+Yerelde http://localhost:8080/admin adresinde. Önce kullanıcı panelinden kayıt olup e-postanı doğrula, sonra backend'i bir kez o hesabı yönetici yapacak şekilde başlat:
+
+```bash
+cd backend && ./gradlew bootRun --args='--vurli.admin.promote=ben@example.com'
+```
+
+İlk girişte bir doğrulama uygulamasıyla (Google Authenticator, 1Password, Authy...) ikinci adımı kurarsın ve 10 yedek kod alırsın. Telefonunu ve yedek kodlarını kaybedersen `--vurli.admin.reset-totp=ben@example.com` ile ikinci adım sıfırlanır.
+
 ### Frontend
 
 İlk kurulum:

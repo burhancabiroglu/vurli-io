@@ -1,4 +1,4 @@
-package io.vurli.link.internal;
+package io.vurli.qr;
 
 import java.awt.Color;
 import java.awt.Graphics2D;

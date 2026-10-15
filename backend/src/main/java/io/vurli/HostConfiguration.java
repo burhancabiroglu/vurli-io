@@ -18,7 +18,7 @@ class HostConfiguration {
 	@Bean
 	FilterRegistrationBean<HostFilter> hostFilter(HostProperties hosts) {
 		FilterRegistrationBean<HostFilter> registration = new FilterRegistrationBean<>(
-				new HostFilter(hosts.publicHosts(), hosts.internalHosts()));
+				new HostFilter(hosts.publicHosts(), hosts.internalHosts(), hosts.adminHosts()));
 		registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
 		return registration;
 	}
@@ -27,9 +27,11 @@ class HostConfiguration {
 	 * @param publicHosts hosts that serve short links, e.g. {@code vurli.io}
 	 * @param internalHosts hosts the API and actuator answer on: the name the Next.js
 	 * panel and the health check use inside the private network
+	 * @param adminHosts hosts the admin panel answers on, e.g. {@code admin.vurli.io}
 	 */
 	@ConfigurationProperties("vurli.hosts")
-	record HostProperties(@Name("public") List<String> publicHosts, @Name("internal") List<String> internalHosts) {
+	record HostProperties(@Name("public") List<String> publicHosts, @Name("internal") List<String> internalHosts,
+			@Name("admin") List<String> adminHosts) {
 	}
 
 }

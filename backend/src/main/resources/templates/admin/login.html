@@ -1,0 +1,18 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.login.title})}"></head>
+<body>
+<main class="narrow">
+	<h1 th:text="#{admin.login.title}">Sign in</h1>
+	<p class="info" th:if="${param.logout}" th:text="#{admin.login.logged-out}">Signed out.</p>
+	<p th:replace="~{admin/fragments :: error}"></p>
+	<form method="post" th:action="@{/admin/login}">
+		<label for="email" th:text="#{admin.login.email}">Email</label>
+		<input id="email" name="email" type="email" autocomplete="username" required>
+		<label for="password" th:text="#{admin.login.password}">Password</label>
+		<input id="password" name="password" type="password" autocomplete="current-password" required>
+		<button type="submit" th:text="#{admin.login.submit}">Continue</button>
+	</form>
+</main>
+</body>
+</html>

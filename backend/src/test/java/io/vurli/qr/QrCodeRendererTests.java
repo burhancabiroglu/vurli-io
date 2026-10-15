@@ -1,4 +1,4 @@
-package io.vurli.link.internal;
+package io.vurli.qr;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

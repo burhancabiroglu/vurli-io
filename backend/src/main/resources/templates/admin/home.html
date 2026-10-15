@@ -1,0 +1,18 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.home.title})}"></head>
+<body>
+<header class="bar">
+	<strong>Vurli Admin</strong>
+	<span class="muted" th:text="${email}">admin@example.com</span>
+	<form method="post" th:action="@{/admin/logout}">
+		<button type="submit" class="secondary" th:text="#{admin.home.logout}">Sign out</button>
+	</form>
+</header>
+<main>
+	<h1 th:text="#{admin.home.title}">Admin panel</h1>
+	<p class="warning" th:if="${backupCodes <= 3}" th:text="#{admin.home.backup-low(${backupCodes})}">Few backup codes left.</p>
+	<p class="muted" th:text="#{admin.home.next}">Search and blocking come next.</p>
+</main>
+</body>
+</html>

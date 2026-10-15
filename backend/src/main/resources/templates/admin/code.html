@@ -1,0 +1,16 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.code.title})}"></head>
+<body>
+<main class="narrow">
+	<h1 th:text="#{admin.code.title}">Second factor</h1>
+	<p th:text="#{admin.code.body}">Enter the code from your app or a backup code.</p>
+	<p th:replace="~{admin/fragments :: error}"></p>
+	<form method="post" th:action="@{/admin/login/code}">
+		<label for="code" th:text="#{admin.code.label}">Code</label>
+		<input id="code" name="code" type="text" inputmode="text" autocomplete="one-time-code" maxlength="20" required autofocus>
+		<button type="submit" th:text="#{admin.code.submit}">Sign in</button>
+	</form>
+</main>
+</body>
+</html>

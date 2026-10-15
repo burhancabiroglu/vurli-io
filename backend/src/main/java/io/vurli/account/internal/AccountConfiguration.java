@@ -1,7 +1,9 @@
 package io.vurli.account.internal;
 
+import java.time.Clock;
 import java.util.Map;
 
+import io.vurli.abuse.AuditLog;
 import io.vurli.account.VurliUser;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -20,7 +22,7 @@ import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(AccountProperties.class)
+@EnableConfigurationProperties({ AccountProperties.class, AdminProperties.class })
 class AccountConfiguration {
 
 	/**
@@ -61,6 +63,17 @@ class AccountConfiguration {
 		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 		provider.setPasswordEncoder(passwordEncoder);
 		return new ProviderManager(provider);
+	}
+
+	/** Fails at startup without a valid key, rather than at the first administrator login. */
+	@Bean
+	SecretCipher secretCipher(AdminProperties properties) {
+		return new SecretCipher(properties.totpKey());
+	}
+
+	@Bean
+	AdminBootstrap adminBootstrap(AdminProperties properties, JdbcClient jdbc, AuditLog audit, Clock clock) {
+		return new AdminBootstrap(properties, jdbc, audit, clock);
 	}
 
 	@Bean

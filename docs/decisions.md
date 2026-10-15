@@ -60,6 +60,9 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K44 | Ülke verisi: DB-IP IP to Country Lite (aylık, `.mmdb`), MaxMind'ın `maxmind-db` okuyucusuyla | Kesin, 2026-10-15 | Hesap ve lisans anahtarı gerekmez, ücretsiz. Lisans CC BY 4.0: istatistik kartında "IP Geolocation by DB-IP" atfı zorunlu. Dosya biçimi MaxMind GeoLite2 ile aynı, geçiş tek ayar. Dosya repoda değil, `scripts/download-geoip.sh` ile indirilir; yoksa tıklamalar ülkesiz sayılır |
 | K45 | Günlük istatistiklerde gün UTC'ye göre | Kesin, 2026-10-15 | Her yerde aynı ve yaz saati sorunu yok. Bedeli: Türkiye'deki kullanıcı için gün 03:00'te başlar; panel bunu belirtir |
 | K46 | Panel grafikleri shadcn chart (Recharts) ile | Kesin, 2026-10-15 | Hazır, erişilebilir ve etkileşimli bileşen. shadcn'in renkleri satır içi `<style>` ile yazan parçası CSP ve `dangerouslySetInnerHTML` yasağı yüzünden çıkarıldı; renkler Tailwind sınıflarıyla veriliyor. Grafik yalnızca tarayıcıda çizilir, çünkü Recharts'ın sunucuda ürettiği `style` öznitelikleri production CSP'sine takılır |
+| K47 | Yönetici girişinde TOTP (RFC 6238, 6 hane, 30 sn) kendi kodumuzla; gizli anahtar veritabanında AES-GCM ile şifreli | Kesin, 2026-10-15 | Yaklaşık 50 satır, yalnızca JDK; RFC test vektörleriyle doğrulanır. Hazır kütüphaneler yıllardır güncellenmiyor. Şifreleme anahtarı ortam değişkeninden gelir, veritabanı sızsa da anahtarlar okunamaz |
+| K48 | İlk yönetici: kayıtlı ve doğrulanmış bir hesap, `VURLI_ADMIN_PROMOTE` başlangıç ayarıyla ADMIN yapılır ve denetim kaydına yazılır | Kesin, 2026-10-15 | Şifre hiçbir ayarda durmaz; hesap normal kayıt akışından geçer |
+| K49 | TOTP kaybına karşı iki yol: kurulumda gösterilen 10 tek kullanımlık yedek kod (yalnızca hash'leri saklanır) ve `VURLI_ADMIN_RESET_TOTP` başlangıç ayarıyla sunucudan sıfırlama | Kesin, 2026-10-15 | Yedek kod sunucuya erişim gerektirmez; sunucudan sıfırlama, kodlar da kaybolduğunda son çaredir |
 
 ## Açık sorular
 

@@ -6,18 +6,54 @@ Son güncelleme: 2026-10-15
 
 M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve kötüye kullanım) devam ediyor**:
 
-1. Hız sınırları ve kotalar: tamamlandı (`68cb7d9`, CI yeşil `f791930`).
-2. İstatistik: tamamlandı (aşağıdaki kayıt).
-3. Yönetici paneli: sırada.
+1. Hız sınırları ve kotalar: tamamlandı (`68cb7d9`).
+2. İstatistik: tamamlandı (`ac77e7a`, CI yeşil).
+3. Yönetici paneli: 3a (giriş ve ikinci adım) tamamlandı (aşağıdaki kayıt); 3b (arama, engelleme, denetim kaydı ekranı) sırada.
 4. Web Risk ve bildirim formu.
 5. Yük testi.
 
 ## Sıradaki adım
 
-1. Dilim 2 commit'inin üç CI işini kontrol et.
-2. M3 dilim 3, yönetici paneli (`admin.vurli.io`, K43): ADMIN rolü, TOTP ile iki adımlı giriş, Spring Security CSRF, ayrı oturum çerezi, link ve hesap arama, engelleme, denetim kaydı. Önce TOTP kütüphanesi ve ilk yöneticinin nasıl oluşturulacağı seçilmeli.
+1. Dilim 3a commit'inin üç CI işini kontrol et.
+2. M3 dilim 3b: link arama (kod, hedef), hesap arama (e-posta), link engelleme (`LinkModeration.block`) ve kaldırma, bir hesabın bütün linklerini tek işlemle engelleme, denetim kaydı ekranı. Her engelleme denetim kaydına yazılır ve commit'ten sonra yönlendirmede etkili olmalı (uçtan uca test; M3'ün "bitti" şartı).
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 3a: yönetici girişi ve ikinci adım
+
+- Kararlar: K47 (TOTP kendi kodumuzla, gizli anahtar AES-GCM ile şifreli), K48 (ilk yönetici başlangıç ayarıyla), K49 (yedek kodlar ve sunucudan sıfırlama). Kullanıcının isteğiyle kurtarma için iki yol birden uygulandı.
+- Şema: `V6__create_admin_security.sql` (`admin_credentials`, `admin_backup_codes`, `audit_log`).
+- Yeni modüller: `admin` (giriş akışı ve sayfalar) ve `qr`. QR çizici `link.internal`'dan `qr` modülüne taşındı, çünkü TOTP kurulum sayfası da kullanıyor.
+- `account`:
+  - `TwoFactorAuthentication`: kurulum, onay, doğrulama, yedek kodlar.
+  - `Totp` ve `Base32Codec`.
+  - `SecretCipher` (AES-256-GCM).
+  - `AdminBootstrap`: `vurli.admin.promote` ve `vurli.admin.reset-totp`.
+- `abuse`:
+  - `AuditLog`.
+  - Yeni hız sınırı: `TOTP_FAILURES_PER_USER` (15 dakikada 5); K42'nin uzantısı.
+- Kök paket:
+  - Üçüncü güvenlik zinciri (`/admin/**`; CSRF, CSP, ikinci adım yetkisi).
+  - `HostFilter`'a yönetici host'u.
+  - Yönetici paneline ayrı oturum çerezi (`VURLI_ADMIN_SESSION`, `/admin`, `SameSite=Strict`).
+- Yol üstünde bulunan sorunlar:
+  - **Şifreyle ikinci adımı atlama riski:** `VurliUser` rolü oturuma yazdığı için, bir yöneticinin kullanıcı paneline yalnızca şifreyle açtığı oturum da `ROLE_ADMIN` taşıyor. Panel bu yüzden yalnızca ikinci adımda verilen `ADMIN_SECOND_FACTOR` yetkisini kabul ediyor. Testi var; rol kontrolüne geri dönülünce kırılıyor.
+  - **CSRF hatası yönlendirmeye dönüşüyordu:** yetki reddi için yazılan "girişe yönlendir" kuralı CSRF hatalarını da yakalıyordu. CSRF hataları artık 403.
+  - **Geliştirme anahtarı 33 bayttı:** ilk yazılan Base64 değer 33 bayta çözülüyordu ve uygulama başlamazdı. Doğrulanmış bir 32 baytlık anahtarla değiştirildi.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 304 test, 0 başarısız.
+    - `TotpTests` (16): RFC 6238 ekindeki SHA-1 vektörleri (8 hane), RFC 4226 HOTP değerleri, ±1 adım tolerans ve ±2'nin reddi, kullanılmış ve daha eski kodun reddi, biçim dışı kodlar, RFC 4648 Base32 vektörleri.
+    - `SecretCipherTests` (3): her şifrelemede farklı nonce, kurcalanmış veri ve yanlış anahtarın reddi, yanlış boyutta anahtarla başlamama.
+    - `AdminLoginIntegrationTests` (9): ilk girişte kurulum (çerez `Path=/admin; HttpOnly; SameSite=Strict`, yenilenince aynı anahtar, yanlış kodun reddi, 10 yedek kod, `no-store`, oturum kimliğinin değişmesi, eski kimliğin çalışmaması, denetim kayıtları); kurulumda kullanılan kodun tekrar kabul edilmemesi, yedek kodun bir kez çalışması; yalnızca şifreyle açılmış oturumların (API oturumu, çerez adı değiştirilmiş API oturumu, yarı girişli oturum) panele girememesi; yönetici olmayan hesabın yanlış şifreyle birebir aynı sayfayı alması; 5 yanlış koddan sonra doğru yedek kodun da reddi; CSRF'siz isteğin 403 alması ve hiçbir kayıt bırakmaması; panelin yalnızca kendi host'unda açılması ve yönetici host'undan API'ye ulaşılamaması; çıkış; ikinci adım sayfalarının şifre adımı olmadan açılmaması.
+    - `AdminBootstrapIntegrationTests` (4): doğrulanmış hesabın bir kez yükseltilip kaydedilmesi (harf büyüklüğünden bağımsız); doğrulanmamış ve bilinmeyen hesabın yükseltilmemesi; sıfırlamanın ikinci adımı ve yedek kodları silmesi ve yeni kurulumun yeni anahtarla başlaması; yönetici olmayan hesapta sıfırlamanın bir şey yapmaması.
+    - Negatif kontroller (her biri ayrı, sonra geri alındı): yetkiyi `hasRole("ADMIN")`'e çevirmek, tekrar korumasını kaldırmak, yedek kodun ikinci kullanımına izin vermek, girişte oturum kimliğini yenilememek (3 test), yönetici olmayan hesabı kabul etmek, kod deneme sınırını kaldırmak ve doğrulanmamış hesabı yükseltmek testleri kırdı.
+  - Gerçek sunucuda (`bootRun --args='--vurli.admin.promote=…'`): yerel test hesabı yönetici yapıldı ve log'a yazıldı. Uygulama içi tarayıcıda giriş yapılınca kurulum sayfası açıldı ve QR göründü. Sayfadaki anahtardan Python'un standart kütüphanesiyle bağımsız olarak hesaplanan kod kabul edildi; yani uygulamamız standart TOTP uygulamalarıyla uyumlu. Yedek kodlar gösterildi, ana sayfa açıldı; oturum çerezi JavaScript'ten görünmüyor; çıkıştan sonra `/admin` giriş sayfasına gidiyor; konsolda CSP ihlali yok. `curl` ile yanıt başlıkları: CSP `default-src 'none'…`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
+  - `npm run e2e`: 2 test geçti (yeni çerez ve host kuralları kullanıcı panelini etkilemedi).
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Yarı girişli oturumun 5 dakikalık süresi otomatik testle sınanmadı (saat kontrolü gerektiriyor).
+  - Yönetici paneli yalnızca Türkçe ve İngilizce metinlerle, tarayıcı diline göre; tasarımı sade.
+  - Canlıda `VURLI_ADMIN_TOTP_KEY` ortam değişkeni M4'te sunucuya eklenecek; anahtar değişirse kayıtlı TOTP anahtarları çözülemez ve yöneticilerin ikinci adımı sıfırlanmalı.
 
 ### 2026-10-15 — M3 dilim 2: istatistik
 

@@ -1,0 +1,19 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.setup.title})}"></head>
+<body>
+<main class="narrow">
+	<h1 th:text="#{admin.setup.title}">Set up the second factor</h1>
+	<p th:text="#{admin.setup.body}">Scan the code with an authenticator app, then enter the code it shows.</p>
+	<img class="qr" th:src="${qr}" width="200" height="200" th:alt="#{admin.setup.qr-alt}" alt="QR code">
+	<p class="muted" th:text="#{admin.setup.manual}">Or enter this key by hand:</p>
+	<p><code class="secret" th:text="${secret}">SECRET</code></p>
+	<p th:replace="~{admin/fragments :: error}"></p>
+	<form method="post" th:action="@{/admin/login/setup}">
+		<label for="code" th:text="#{admin.code.label}">Code</label>
+		<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+		<button type="submit" th:text="#{admin.setup.submit}">Confirm</button>
+	</form>
+</main>
+</body>
+</html>

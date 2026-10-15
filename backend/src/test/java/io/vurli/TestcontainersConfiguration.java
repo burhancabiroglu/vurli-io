@@ -43,6 +43,8 @@ public class TestcontainersConfiguration {
 			registry.add("spring.mail.host", mailpitContainer::getHost);
 			registry.add("spring.mail.port", () -> mailpitContainer.getMappedPort(SMTP_PORT));
 			registry.add("vurli.app-base-url", () -> "http://app.test");
+			// A fixed key for tests only.
+			registry.add("vurli.admin.totp-key", () -> "dGVzdC1vbmx5LWtleS1mb3ItdnVybGktdG90cC10ZXM=");
 		};
 	}
 

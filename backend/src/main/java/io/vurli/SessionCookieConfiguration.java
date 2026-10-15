@@ -1,5 +1,9 @@
 package io.vurli;
 
+import java.util.List;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,18 +21,48 @@ class SessionCookieConfiguration {
 
 	static final String COOKIE_NAME = "VURLI_SESSION";
 
+	static final String ADMIN_COOKIE_NAME = "VURLI_ADMIN_SESSION";
+
 	/**
-	 * HttpOnly keeps the cookie away from JavaScript, SameSite=Lax keeps it off
-	 * cross-site POSTs, and no Domain attribute keeps it on the host that set it
-	 * (app.vurli.io), never on vurli.io where short links live.
+	 * Two cookies (K43): the panel's and the admin panel's. They never stand in for each
+	 * other, even where both apps share a host, as in local development.
+	 * <ul>
+	 * <li>Panel: HttpOnly keeps it away from JavaScript, SameSite=Lax off cross-site
+	 * POSTs, and no Domain attribute on the host that set it (app.vurli.io), never on
+	 * vurli.io where short links live.</li>
+	 * <li>Admin: the same, but SameSite=Strict and only sent to {@code /admin}.</li>
+	 * </ul>
 	 */
 	@Bean
 	CookieSerializer cookieSerializer(@Value("${vurli.session.secure-cookie:true}") boolean secure) {
+		DefaultCookieSerializer panel = serializer(COOKIE_NAME, "/", "Lax", secure);
+		DefaultCookieSerializer admin = serializer(ADMIN_COOKIE_NAME, "/admin", "Strict", secure);
+		return new CookieSerializer() {
+
+			@Override
+			public void writeCookieValue(CookieValue cookieValue) {
+				pick(cookieValue.getRequest()).writeCookieValue(cookieValue);
+			}
+
+			@Override
+			public List<String> readCookieValues(HttpServletRequest request) {
+				return pick(request).readCookieValues(request);
+			}
+
+			private CookieSerializer pick(HttpServletRequest request) {
+				String path = request.getRequestURI();
+				return (path.equals("/admin") || path.startsWith("/admin/")) ? admin : panel;
+			}
+
+		};
+	}
+
+	private static DefaultCookieSerializer serializer(String name, String path, String sameSite, boolean secure) {
 		DefaultCookieSerializer serializer = new DefaultCookieSerializer();
-		serializer.setCookieName(COOKIE_NAME);
-		serializer.setCookiePath("/");
+		serializer.setCookieName(name);
+		serializer.setCookiePath(path);
 		serializer.setUseHttpOnlyCookie(true);
-		serializer.setSameSite("Lax");
+		serializer.setSameSite(sameSite);
 		serializer.setUseSecureCookie(secure);
 		return serializer;
 	}

@@ -2,7 +2,7 @@ package io.vurli.link;
 
 import java.util.UUID;
 
-import io.vurli.link.internal.QrCodeRenderer;
+import io.vurli.qr.QrCodeRenderer;
 
 import org.springframework.stereotype.Service;
 

@@ -38,7 +38,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Hata mesajı "e-posta veya şifre hatalı" şeklindedir; hangisinin yanlış olduğu söylenmez. Kayıt ve şifre sıfırlama da bir hesabın var olup olmadığını belli etmez. *Uygulandı.*
 - Doğrulama ve sıfırlama token'ları rastgele üretilir, tek kullanımlıktır, hash'li saklanır ve kısa ömürlüdür (24 saat ve 1 saat). E-postada URL fragment'ında taşınır. *Uygulandı.*
 - Girişte oturum kimliği yenilenir; şifre sıfırlanınca bütün oturumlar kapatılır. *Uygulandı.*
-- Yönetici hesaplarında TOTP ile iki adımlı doğrulama zorunludur (M4'ten önce).
+- Yönetici hesaplarında TOTP ile iki adımlı doğrulama zorunludur. Yönetici paneli yalnızca ikinci adımdan geçen oturumları kabul eder; yalnızca şifreyle açılmış bir oturum (kullanıcı panelinden de olsa) paneli açamaz. Kodlar tek kullanımlıktır, yanlış kodlar sınırlıdır, gizli anahtarlar şifreli saklanır, yedek kodların yalnızca hash'i tutulur (K47, K49). *Uygulandı* (`AdminLoginIntegrationTests`, `TotpTests`: RFC 6238 test vektörleri).
 
 **Testler** (`AccountManagementIntegrationTests`, `AuthApiTests`):
 
@@ -68,7 +68,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - CSP ile script'ler yalnızca kendi origin'imizden yüklenir; Next.js'in gerektirdiği inline script'ler her istekte yeni üretilen nonce ile izin alır (`src/proxy.ts`). Production'da satır içi stil ve `eval` yasak; `frame-ancestors 'none'`, `form-action 'self'`, `object-src 'none'`. Production sayfası tarayıcıda CSP ihlali olmadan çalıştı. *Uygulandı.*
 - Ek başlıklar: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`; `X-Powered-By` kapalı. *Uygulandı.*
 - E-posta linkindeki token sayfa açılınca okunur ve adres çubuğundan silinir; tarayıcı geçmişinde kalmaz. Doğrulama sayfası token'ı yalnızca bir kez gönderir (React Strict Mode'da da). *Uygulandı.*
-- Kullanıcı panelinde CSRF koruması iki katmanlı: Next.js'te `SameSite=Lax` çerez ve `Origin` kontrolü; Spring API'de her değişiklik isteğinde zorunlu `X-Vurli-Client` başlığı (OWASP'ın "custom request header" savunması; API CORS izni vermez). Yönetici panelinde Spring Security CSRF koruması açık olacak (M3).
+- Kullanıcı panelinde CSRF koruması iki katmanlı: Next.js'te `SameSite=Lax` çerez ve `Origin` kontrolü; Spring API'de her değişiklik isteğinde zorunlu `X-Vurli-Client` başlığı (OWASP'ın "custom request header" savunması; API CORS izni vermez). Yönetici panelinde Spring Security CSRF koruması açık; token'sız form isteği 403 alır. *Uygulandı.*
 - Oturum çerezi host-only, `Secure`, `HttpOnly` ve `SameSite=Lax`'tır. Kısa link alan adı (`vurli.io`) oturum çerezini hiç görmez.
 - **Spring API internete açık değildir.** Yalnızca iç ağdan, Next.js'ten gelen istekleri kabul eder. Bu ek bir savunma katmanıdır, tek başına güvenlik değildir: Next.js'in uç noktaları da dışa açık olduğu için her yetki kararı Spring'de verilir.
 - Panel formlarından gelen link kimliği API yoluna girmeden önce UUID olarak doğrulanır; böylece `../auth/logout` gibi bir değer başka bir uç noktaya ulaşamaz (`lib/links.test.ts`). *Uygulandı.*

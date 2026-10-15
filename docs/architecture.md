@@ -27,11 +27,13 @@ Kök paket `io.vurli`. Her modül kendi tablolarının sahibidir. Başka bir mod
 
 | Modül | Sorumluluk |
 |---|---|
-| `account` | Kayıt, giriş, e-posta doğrulama, şifre sıfırlama, workspace |
-| `link` | Link oluşturma ve düzenleme, kod üretimi, URL doğrulama, QR |
+| `account` | Kayıt, giriş, e-posta doğrulama, şifre sıfırlama, workspace, yöneticilerin ikinci adımı (TOTP, yedek kodlar) |
+| `link` | Link oluşturma ve düzenleme, kod üretimi, URL doğrulama, linklerin QR kodu |
 | `redirect` | Kısa kodu çözüp yönlendirmek. Panelden bağımsız ve olabildiğince hızlı |
 | `analytics` | Tıklama kaydı, bot ayıklama, günlük özetler, istatistik sorguları |
-| `abuse` | URL güvenlik kontrolü, bildirimler, yönetici engellemesi, denetim kaydı |
+| `abuse` | Hız sınırları, URL güvenlik kontrolü, bildirimler, yönetici engellemesi, denetim kaydı |
+| `admin` | Yönetici paneli: giriş akışı ve ekranlar (Thymeleaf) |
+| `qr` | QR kod çizimi (PNG, SVG); `link` ve `admin` kullanır |
 
 `redirect` yalnızca iki şey kullanır: `link` modülünün okuma arayüzü ve `analytics` modülünün tıklama kayıt arayüzü. Next.js'in çağırdığı REST controller'ları ve yönetici panelinin Thymeleaf şablonları ilgili modülün `web` alt paketinde durur.
 
@@ -50,7 +52,9 @@ click_events      id, link_id, occurred_at, referrer_host, country, device_type
 link_daily_stats  link_id, day, clicks, by_referrer (jsonb), by_country (jsonb),
                   by_device (jsonb)                         PK (link_id, day)
 abuse_reports     id, link_id, reason, reporter_email (opsiyonel), status, created_at
-audit_log         id, actor_id, action, target_type, target_id, details (jsonb), created_at
+audit_log         id, actor_id (sistem için boş), action, target_type, target_id, details (jsonb), created_at
+admin_credentials user_id, totp_secret (AES-GCM ile şifreli), confirmed_at, last_used_step, created_at
+admin_backup_codes user_id, code_hash (SHA-256, unique), used_at, created_at
 ```
 
 Spring Session JDBC'nin tabloları (`spring_session`, `spring_session_attributes`) V4 migration'ında; şemayı Spring değil Flyway yönetir. `workspaces.owner_id`, hesaplardan önce oluşturulmuş satırlar için boş olabilir; her yeni workspace'in sahibi var. `links.created_by` henüz yok.
@@ -174,7 +178,16 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 
 ## Yönetici paneli
 
-Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç: link ve hesap arama, engelleme, kötüye kullanım bildirimleri, denetim kaydı. Yalnızca `ADMIN` rolü; iki adımlı doğrulama zorunlu. `admin.vurli.io`'da çalışacak (K43); ayrıntılar M3 dilim 3'te.
+Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç (K30), `admin.vurli.io`'da (K43). Giriş akışı uygulandı (M3 dilim 3a); link ve hesap arama, engelleme ve denetim kaydı ekranı dilim 3b'de.
+
+- **Host ve oturum:** `/admin` ve altı yalnızca `vurli.hosts.admin` host'unda yanıt verir (`HostFilter`). Ayrı bir oturum çerezi kullanılır: `VURLI_ADMIN_SESSION`, yalnızca `/admin` yoluna, `SameSite=Strict`, `HttpOnly`, `Secure`. Kullanıcı panelinin çereziyle hiçbir zaman yer değiştirmez; yerel geliştirmede ikisi aynı host'ta olsa da. Yönetici oturumu 1 saat hareketsizlikte biter.
+- **Giriş:** önce e-posta ve şifre. Yönetici olmayan bir hesap, yanlış şifreyle aynı yanıtı alır. Şifre doğruysa oturum "yarı girişli" olur (5 dakika) ve kimliği yenilenir. Sonra TOTP kodu ya da yedek kod istenir. İkinci adımı henüz olmayan yönetici önce kurulum sayfasına gider: QR ve elle girilecek anahtar, ardından ilk kodla onay ve 10 yedek kod. Yedek kodlar bir kez, doğrudan sayfada gösterilir; oturuma ya da yönlendirmeye yazılmaz.
+- **Yetki:** panel `ROLE_ADMIN` yerine yalnızca ikinci adımdan sonra verilen `ADMIN_SECOND_FACTOR` yetkisini kabul eder. Bir yöneticinin kullanıcı paneline yalnızca şifreyle açtığı oturum da `ROLE_ADMIN` taşıdığı için bu ayrım zorunlu.
+- **TOTP (K47):** RFC 6238, HMAC-SHA1, 6 hane, 30 saniye, bir adım saat kayması toleransı. Gizli anahtar AES-256-GCM ile şifreli saklanır; anahtar `vurli.admin.totp-key` ayarından gelir, yoksa uygulama başlamaz. Kullanılan adım kaydedilir (`last_used_step`); aynı kod ve ondan eski kodlar tekrar kabul edilmez. Kodlar ve yedek kodlar koşullu `UPDATE` ile tüketildiği için iki eşzamanlı istek aynı kodu kullanamaz.
+- **Sınırlar:** şifre adımında giriş sınırları (K42); kod adımında kullanıcı başına 15 dakikada 5 yanlış kod.
+- **İlk yönetici ve kurtarma (K48, K49):** `vurli.admin.promote` (ortam değişkeni `VURLI_ADMIN_PROMOTE`) doğrulanmış bir hesabı başlangıçta yönetici yapar; `vurli.admin.reset-totp` bir yöneticinin ikinci adımını ve yedek kodlarını siler. İkisi de denetim kaydına sistem eylemi olarak yazılır ve tekrar çalıştırılınca bir şey değiştirmez.
+- **Sayfalar:** CSP `default-src 'none'`; yalnızca kendi stil dosyamız ve satır içi QR görselleri (`data:`). Spring Security CSRF token'ları açık; token'sız form isteği 403 alır. `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
+- **Denetim kaydı:** `abuse.AuditLog`; şu an yükseltme, ikinci adım sıfırlama ve kurulumu, giriş (yöntemiyle), reddedilen kod ve kullanılan yedek kod yazılıyor. Kayıtlarda kod, şifre veya anahtar bulunmaz.
 
 ## Dağıtım
 

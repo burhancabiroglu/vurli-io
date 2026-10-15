@@ -1,0 +1,14 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.backup.title})}"></head>
+<body>
+<main class="narrow">
+	<h1 th:text="#{admin.backup.title}">Backup codes</h1>
+	<p th:text="#{admin.backup.body}">Each code works once. Store them somewhere safe; they are not shown again.</p>
+	<ul class="codes">
+		<li th:each="code : ${backupCodes}"><code th:text="${code}">XXXXX-XXXXX</code></li>
+	</ul>
+	<p><a class="button" th:href="@{/admin}" th:text="#{admin.backup.continue}">Continue</a></p>
+</main>
+</body>
+</html>

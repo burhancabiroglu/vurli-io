@@ -1,0 +1,13 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex">
+	<title th:text="${title} + ' · Vurli Admin'">Vurli Admin</title>
+	<link rel="stylesheet" th:href="@{/admin/assets/admin.css}">
+</head>
+<body>
+	<p th:fragment="error" class="error" role="alert" th:if="${error}" th:text="#{${error}}">Error</p>
+</body>
+</html>

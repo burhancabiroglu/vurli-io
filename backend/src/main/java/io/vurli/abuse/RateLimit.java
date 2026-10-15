@@ -21,6 +21,9 @@ public enum RateLimit {
 	LINK_CREATIONS_PER_USER,
 
 	/** Short link visits from one address. */
-	REDIRECTS_PER_IP
+	REDIRECTS_PER_IP,
+
+	/** Wrong second-factor codes of one administrator, wherever they come from. */
+	TOTP_FAILURES_PER_USER
 
 }

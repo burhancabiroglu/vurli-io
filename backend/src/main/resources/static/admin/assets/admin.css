@@ -1,0 +1,46 @@
+/* Vurli admin panel. Served from our own origin: the CSP allows no inline styles. */
+:root {
+	color-scheme: light dark;
+	--fg: #18181b;
+	--muted: #71717a;
+	--bg: #ffffff;
+	--border: #e4e4e7;
+	--accent: #18181b;
+	--accent-fg: #ffffff;
+	--error: #b91c1c;
+	--warning: #a16207;
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--fg: #f4f4f5;
+		--muted: #a1a1aa;
+		--bg: #09090b;
+		--border: #27272a;
+		--accent: #f4f4f5;
+		--accent-fg: #09090b;
+		--error: #f87171;
+		--warning: #facc15;
+	}
+}
+
+body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.5; }
+main { max-width: 56rem; margin: 0 auto; padding: 2rem 1rem; }
+main.narrow { max-width: 24rem; padding-top: 4rem; }
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+form { display: flex; flex-direction: column; gap: 0.5rem; }
+label { font-size: 0.875rem; font-weight: 500; }
+input { font: inherit; padding: 0.5rem 0.625rem; border: 1px solid var(--border); border-radius: 0.5rem; background: transparent; color: inherit; }
+button, .button { font: inherit; font-weight: 500; padding: 0.5rem 0.875rem; border: 0; border-radius: 0.5rem; background: var(--accent); color: var(--accent-fg); cursor: pointer; text-decoration: none; display: inline-block; margin-top: 0.5rem; }
+button.secondary { background: transparent; color: inherit; border: 1px solid var(--border); margin: 0; }
+.muted { color: var(--muted); }
+.error { color: var(--error); }
+.warning { color: var(--warning); }
+.info { color: var(--muted); }
+.qr { display: block; margin: 1rem 0; border: 1px solid var(--border); border-radius: 0.5rem; background: #fff; }
+.secret { font-size: 0.875rem; word-break: break-all; }
+.codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+.codes code { font-size: 1rem; }
+.bar { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.bar form { margin-left: auto; }
