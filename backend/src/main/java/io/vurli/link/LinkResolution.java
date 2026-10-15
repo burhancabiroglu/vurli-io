@@ -1,12 +1,14 @@
 package io.vurli.link;
 
+import java.util.UUID;
+
 /**
  * What a visitor of a short link should get.
  */
 public sealed interface LinkResolution {
 
 	/** The link is live: send the visitor to the stored target. */
-	record Redirect(String targetUrl) implements LinkResolution {
+	record Redirect(UUID linkId, String targetUrl) implements LinkResolution {
 	}
 
 	/** The link existed but no longer redirects: disabled, blocked, deleted or expired. */

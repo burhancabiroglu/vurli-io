@@ -66,7 +66,7 @@ class LinkManagementIntegrationTests {
 
 	@BeforeEach
 	void setUp() {
-		this.jdbc.update("truncate table links, workspaces");
+		this.jdbc.update("truncate table click_events, link_daily_stats, links, workspaces");
 		this.workspaceId = UUID.randomUUID();
 		this.jdbc.update("insert into workspaces (id, name, created_at) values (?, 'test', now())", this.workspaceId);
 	}

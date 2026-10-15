@@ -7,6 +7,8 @@ import tr from "../src/lib/i18n/dictionaries/tr.json";
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
 const SHORT_BASE_URL = process.env.SHORT_BASE_URL ?? "http://localhost:8080";
 const PASSWORD = "uçtan uca test şifresi";
+const BROWSER =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1";
 
 /** The verification link from the newest email to this address, as a user would click it. */
 async function verificationLink(request: APIRequestContext, email: string): Promise<string> {
@@ -30,9 +32,16 @@ async function verificationLink(request: APIRequestContext, email: string): Prom
   return link!;
 }
 
-/** Asks the short link itself where it goes, without following the redirect. */
+/**
+ * Asks the short link itself where it goes, without following the redirect. Identifies
+ * as a monitor, so these checks are not counted as clicks (the request fixture would
+ * otherwise send the desktop Chrome User-Agent of the test project).
+ */
 async function visit(request: APIRequestContext, alias: string) {
-  const response = await request.get(`${SHORT_BASE_URL}/${alias}`, { maxRedirects: 0 });
+  const response = await request.get(`${SHORT_BASE_URL}/${alias}`, {
+    maxRedirects: 0,
+    headers: { "User-Agent": "Vurli-E2E-Monitor/1.0" },
+  });
   return { status: response.status(), location: response.headers()["location"] };
 }
 
@@ -76,6 +85,27 @@ test("a new user registers, creates a link, downloads its QR code and manages it
     await expect(page).toHaveURL(/\/links\/[0-9a-f-]{36}\?created=1$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(alias);
     expect(await visit(request, alias)).toEqual({ status: 302, location: "https://example.com/e2e" });
+  });
+
+  await test.step("see a visit in the statistics", async () => {
+    // visit() above identifies as a monitor and is not counted; this one looks like a phone.
+    const response = await request.get(`${SHORT_BASE_URL}/${alias}`, {
+      maxRedirects: 0,
+      headers: { "User-Agent": BROWSER, Referer: "https://www.instagram.com/p/abc" },
+    });
+    expect(response.status()).toBe(302);
+    // Clicks are written in batches every second.
+    await expect
+      .poll(
+        async () => {
+          await page.reload();
+          return page.getByTestId("total-clicks").textContent();
+        },
+        { timeout: 10_000 },
+      )
+      .toBe("1");
+    await expect(page.getByText("instagram.com")).toBeVisible();
+    await expect(page.getByText(tr.stats.device.MOBILE)).toBeVisible();
   });
 
   await test.step("download the QR code", async () => {

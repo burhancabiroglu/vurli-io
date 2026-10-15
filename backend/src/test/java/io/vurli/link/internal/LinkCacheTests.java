@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,9 +16,9 @@ import org.junit.jupiter.api.Test;
 
 class LinkCacheTests {
 
-	private static final LinkSnapshot ACTIVE = new LinkSnapshot("https://example.com", LinkStatus.ACTIVE, null, null);
+	private static final LinkSnapshot ACTIVE = new LinkSnapshot(UUID.randomUUID(), "https://example.com", LinkStatus.ACTIVE, null, null);
 
-	private static final LinkSnapshot BLOCKED = new LinkSnapshot("https://example.com", LinkStatus.BLOCKED, null,
+	private static final LinkSnapshot BLOCKED = new LinkSnapshot(UUID.randomUUID(), "https://example.com", LinkStatus.BLOCKED, null,
 			null);
 
 	/**

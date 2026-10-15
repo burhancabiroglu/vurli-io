@@ -129,15 +129,18 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 
 ## Tıklama kaydı
 
-- Yönlendirme, tıklamayı sınırlı boyutlu bir bellek kuyruğuna (örneğin 10.000 olay) bırakır. Arka plan işi her saniye toplu `INSERT` yapar.
-- Kuyruk doluysa olay atılır ve bir metrik artar. Yönlendirme asla beklemez.
-- Bilinen bot User-Agent'ları ve link önizleme botları (WhatsApp, Slack, X, Facebook gibi) sayılmaz.
-- Ülke MaxMind GeoLite2 veritabanından bulunur ve IP hemen atılır. Referrer'dan yalnızca host saklanır.
-- Gece işi önceki günü `link_daily_stats` tablosuna özetler ve 90 günden eski `click_events` kayıtlarını siler.
+`analytics` modülü. Uygulandı (M3 dilim 2).
+
+- **Kayıt:** `RedirectController` yalnızca `GET` ile gelen ve yönlendirilen ziyaretleri `ClickRecorder`'a verir; `HEAD` sayılmaz. Botlar, link önizleme botları (WhatsApp, Slack, X, Facebook, Telegram, Discord, LinkedIn...), izleme araçları, HTTP kütüphaneleri, otomasyon araçları, User-Agent'sız istekler ve tarayıcının önceden yüklemeleri (`Sec-Purpose: prefetch`) sayılmaz (`UserAgents`).
+- **Kuyruk:** sayılan ziyaret 10.000 olaylık bellek kuyruğuna girer; yönlendirme beklemez. `ClickWriter` her saniye 500'lük partilerle `INSERT` yapar. Kuyruk doluysa ya da yazma başarısızsa olay atılır ve `vurli.clicks.dropped` metriği artar.
+- **Saklanan:** link, zaman, referrer'ın yalnızca host'u (`www.` olmadan; `android-app://` gibi web dışı referrer'lar boş), ülke kodu ve cihaz türü (masaüstü, telefon, tablet, diğer). IP adresi yalnızca kuyruktayken bellekte durur; ülke yazıldıktan sonra atılır, hiçbir tabloya girmez.
+- **Ülke:** DB-IP'nin ülke veritabanından (K44). İstemci adresi hız sınırlarıyla aynı yoldan bulunur (`ClientAddresses`).
+- **Günlük özet:** `DailySummaries` her gece 00:10 UTC'de, özeti olmayan bütün tamamlanmış UTC günlerini (K45) `link_daily_stats`'a yazar; kaçırılan geceler sonraki çalışmada telafi edilir. Ardından 90 günden eski ham kayıtları siler. Özet silmeden önce yapıldığı için hiçbir tıklama sayılmadan silinmez.
+- **Sorgu:** `GET /api/v1/links/{id}/stats` önce linkin workspace'e ait olduğunu denetler (başka workspace için 404). Toplam, son 30 günün günlük sayıları ve referrer, ülke ve cihaz için en büyük 10 kalem döner. Her gün ya özetten ya da ham kayıttan sayılır, ikisinden birden asla: ham kayıt yalnızca özeti olmayan günler için kullanılır (bugün ve gecenin henüz işlemediği günler).
 
 ## Kullanıcı paneli (Next.js BFF)
 
-`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; dil `Accept-Language`'den seçilir, metinler `src/lib/i18n/dictionaries` altında (K40). Hesap ekranları (M2 dilim 3) ve link ekranları (dilim 4) uygulandı: ana sayfada oluşturma formu ve sayfalı liste; `/links/{id}` sayfasında kopyalama, QR önizleme ve indirme, hedef ve bitiş tarihi değiştirme, kapatma/açma ve onaylı silme.
+`app.vurli.io` üzerinde Next.js (App Router), Tailwind CSS ve shadcn/ui ile çalışır. Türkçe ve İngilizce; dil `Accept-Language`'den seçilir, metinler `src/lib/i18n/dictionaries` altında (K40). Hesap ekranları (M2 dilim 3) ve link ekranları (dilim 4) uygulandı: ana sayfada oluşturma formu ve sayfalı liste; `/links/{id}` sayfasında kopyalama, QR önizleme ve indirme, istatistik kartı (toplam, 30 günlük grafik, referrer, ülke ve cihaz; M3 dilim 2), hedef ve bitiş tarihi değiştirme, kapatma/açma ve onaylı silme.
 
 - **Yapı:** `src/lib/api.ts` Spring'e konuşan tek yer (`server-only`). `src/app/actions/auth.ts` form işlemlerini yapan server action'lar. `src/lib/session.ts` her sayfada kullanıcıyı Spring'in `/me` uç noktasına sorar. `src/proxy.ts` CSP nonce'u üretir ve çerez yoksa `/login`'e yönlendirir.
 - **Render:** bütün sayfalar dinamik; `cacheComponents` kapalı (K39).

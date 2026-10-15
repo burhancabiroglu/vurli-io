@@ -37,6 +37,12 @@ Yerelde çalıştır. Spring Boot kökteki `compose.yaml` ile PostgreSQL ve Mail
 cd backend && ./gradlew bootRun
 ```
 
+İstatistiklerde ülke görmek için DB-IP'nin ücretsiz ülke veritabanını bir kez indir (yaklaşık 8 MB, repoya girmez; yoksa tıklamalar ülkesiz sayılır):
+
+```bash
+cd backend && scripts/download-geoip.sh
+```
+
 `bootRun` uygulamayı `dev` profiliyle açar; kısa linkler de `localhost:8080` üzerinden çalışır. API panelden bağımsız olarak `curl` ile de denenebilir. Değişiklik isteklerinde `X-Vurli-Client` başlığı zorunlu.
 
 Kayıt ol; doğrulama e-postası http://localhost:8025 adresindeki Mailpit'e düşer:

@@ -78,3 +78,32 @@ export function isoToLocalInput(iso: string | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/** Clicks of one link (Spring's LinkStatistics). Days are UTC dates ("2026-10-15"). */
+export type LinkStatistics = {
+  totalClicks: number;
+  windowClicks: number;
+  from: string;
+  to: string;
+  days: { day: string; clicks: number }[];
+  referrers: Share[];
+  countries: Share[];
+  devices: Share[];
+};
+
+/** A breakdown entry; a null key means unknown (no referrer, no country). */
+export type Share = { key: string | null; clicks: number };
+
+/**
+ * The listed entries plus one "other" entry for what the top list leaves out, so the
+ * shares add up to the window's clicks.
+ */
+export function withOther(shares: Share[], windowClicks: number): { shares: Share[]; other: number } {
+  const listed = shares.reduce((sum, share) => sum + share.clicks, 0);
+  return { shares, other: Math.max(0, windowClicks - listed) };
+}
+
+/** Whole percent of the total, never NaN. */
+export function percent(part: number, total: number): number {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
+}

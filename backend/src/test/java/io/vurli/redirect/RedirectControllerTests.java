@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.vurli.abuse.ClientAddresses;
 import io.vurli.abuse.RateLimiter;
+import io.vurli.analytics.ClickRecorder;
 import io.vurli.link.LinkResolver;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,9 @@ class RedirectControllerTests {
 
 	@MockitoBean
 	private ClientAddresses clientAddresses;
+
+	@MockitoBean
+	private ClickRecorder clicks;
 
 	@Test
 	void databaseFailureNeverRedirects() throws Exception {

@@ -130,5 +130,27 @@
     "delete": "Sil",
     "confirmDelete": "Evet, kalıcı olarak sil",
     "cancel": "Vazgeç"
+  },
+  "stats": {
+    "title": "İstatistik",
+    "total": "Toplam tıklama",
+    "last30": "Son 30 gün",
+    "chartLabel": "Günlük tıklama",
+    "clicks": "tıklama",
+    "referrers": "Nereden geldi",
+    "countries": "Ülke",
+    "devices": "Cihaz",
+    "direct": "Doğrudan veya bilinmiyor",
+    "unknownCountry": "Bilinmiyor",
+    "other": "Diğer",
+    "empty": "Son 30 günde tıklama yok. Botlar ve link önizlemeleri sayılmaz.",
+    "note": "Günler UTC'ye göre. İstatistikler yaklaşıktır; botlar ve link önizlemeleri sayılmaz.",
+    "attribution": "Ülke verisi:",
+    "device": {
+      "DESKTOP": "Masaüstü",
+      "MOBILE": "Telefon",
+      "TABLET": "Tablet",
+      "OTHER": "Diğer"
+    }
   }
 }

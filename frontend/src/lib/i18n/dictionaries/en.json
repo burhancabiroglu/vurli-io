@@ -130,5 +130,27 @@
     "delete": "Delete",
     "confirmDelete": "Yes, delete permanently",
     "cancel": "Cancel"
+  },
+  "stats": {
+    "title": "Statistics",
+    "total": "Total clicks",
+    "last30": "Last 30 days",
+    "chartLabel": "Daily clicks",
+    "clicks": "clicks",
+    "referrers": "Referrers",
+    "countries": "Countries",
+    "devices": "Devices",
+    "direct": "Direct or unknown",
+    "unknownCountry": "Unknown",
+    "other": "Other",
+    "empty": "No clicks in the last 30 days. Bots and link previews are not counted.",
+    "note": "Days are UTC. Statistics are approximate; bots and link previews are not counted.",
+    "attribution": "Country data:",
+    "device": {
+      "DESKTOP": "Desktop",
+      "MOBILE": "Phone",
+      "TABLET": "Tablet",
+      "OTHER": "Other"
+    }
   }
 }

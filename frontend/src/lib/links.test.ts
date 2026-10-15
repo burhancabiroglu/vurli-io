@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { isLinkId, isoToLocalInput, linkState, localInputToIso, parsePage, parseVersion } from "./links";
+import {
+  isLinkId,
+  isoToLocalInput,
+  linkState,
+  localInputToIso,
+  parsePage,
+  parseVersion,
+  percent,
+  withOther,
+} from "./links";
 
 describe("isLinkId", () => {
   it("accepts UUIDs", () => {
@@ -78,5 +87,26 @@ describe("local datetime conversion", () => {
 
   it("rejects garbage", () => {
     expect(localInputToIso("yarın")).toBeNull();
+  });
+});
+
+describe("breakdowns", () => {
+  it("adds what the top list leaves out as other", () => {
+    const shares = [
+      { key: "instagram.com", clicks: 6 },
+      { key: null, clicks: 2 },
+    ];
+    expect(withOther(shares, 10)).toEqual({ shares, other: 2 });
+    expect(withOther(shares, 8).other).toBe(0);
+  });
+
+  it("never reports more than what was clicked", () => {
+    expect(withOther([{ key: "a", clicks: 5 }], 3).other).toBe(0);
+  });
+
+  it("rounds percentages and survives an empty window", () => {
+    expect(percent(1, 3)).toBe(33);
+    expect(percent(2, 3)).toBe(67);
+    expect(percent(0, 0)).toBe(0);
   });
 });

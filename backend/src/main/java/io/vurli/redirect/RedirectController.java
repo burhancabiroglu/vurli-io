@@ -1,9 +1,13 @@
 package io.vurli.redirect;
 
+import java.util.Locale;
+
 import io.vurli.abuse.ClientAddresses;
 import io.vurli.abuse.RateLimit;
 import io.vurli.abuse.RateLimitExceededException;
 import io.vurli.abuse.RateLimiter;
+import io.vurli.analytics.ClickRecorder;
+import io.vurli.analytics.Visit;
 import io.vurli.link.LinkResolution;
 import io.vurli.link.LinkResolver;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,10 +39,14 @@ class RedirectController {
 
 	private final ClientAddresses clientAddresses;
 
-	RedirectController(LinkResolver resolver, RateLimiter rateLimiter, ClientAddresses clientAddresses) {
+	private final ClickRecorder clicks;
+
+	RedirectController(LinkResolver resolver, RateLimiter rateLimiter, ClientAddresses clientAddresses,
+			ClickRecorder clicks) {
 		this.resolver = resolver;
 		this.rateLimiter = rateLimiter;
 		this.clientAddresses = clientAddresses;
+		this.clicks = clicks;
 	}
 
 	@GetMapping("/{code}")
@@ -51,11 +60,28 @@ class RedirectController {
 				// The visitor's query string is deliberately not forwarded.
 				response.setStatus(HttpStatus.FOUND.value());
 				response.setHeader(HttpHeaders.LOCATION, redirect.targetUrl());
+				// HEAD only asks about the link; nobody visits it.
+				if (HttpMethod.GET.matches(request.getMethod())) {
+					this.clicks.record(new Visit(redirect.linkId(), request.getHeader(HttpHeaders.USER_AGENT),
+							request.getHeader(HttpHeaders.REFERER), this.clientAddresses.address(request).orElse(null),
+							isPrefetch(request)));
+				}
 				yield null;
 			}
 			case LinkResolution.Gone gone -> new ModelAndView("link/gone", HttpStatus.GONE);
 			case LinkResolution.NotFound notFound -> new ModelAndView("link/not-found", HttpStatus.NOT_FOUND);
 		};
+	}
+
+	/** Browsers announce speculative loads; those are not visits. */
+	private static boolean isPrefetch(HttpServletRequest request) {
+		for (String header : new String[] { "Sec-Purpose", "Purpose", "X-Moz" }) {
+			String value = request.getHeader(header);
+			if (value != null && value.toLowerCase(Locale.ROOT).contains("prefetch")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@ExceptionHandler(RateLimitExceededException.class)

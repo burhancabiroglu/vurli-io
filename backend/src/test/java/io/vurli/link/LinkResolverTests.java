@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.benmanes.caffeine.cache.Ticker;
@@ -27,6 +28,8 @@ class LinkResolverTests {
 
 	private final AtomicInteger lookups = new AtomicInteger();
 
+	private static final UUID LINK_ID = UUID.randomUUID();
+
 	private final LinkResolver resolver = new LinkResolver(new LinkCache((code) -> {
 		this.lookups.incrementAndGet();
 		return Optional.ofNullable(this.database.get(code));
@@ -37,7 +40,7 @@ class LinkResolverTests {
 		store("kafe-menu", LinkStatus.ACTIVE, null, null);
 
 		assertThat(this.resolver.resolve("kafe-menu"))
-			.isEqualTo(new LinkResolution.Redirect("https://example.com/menu"));
+			.isEqualTo(new LinkResolution.Redirect(LINK_ID, "https://example.com/menu"));
 	}
 
 	@ParameterizedTest
@@ -90,7 +93,7 @@ class LinkResolverTests {
 	}
 
 	private void store(String code, LinkStatus status, Instant expiresAt, Instant deletedAt) {
-		this.database.put(code, new LinkSnapshot("https://example.com/menu", status, expiresAt, deletedAt));
+		this.database.put(code, new LinkSnapshot(LINK_ID, "https://example.com/menu", status, expiresAt, deletedAt));
 	}
 
 }

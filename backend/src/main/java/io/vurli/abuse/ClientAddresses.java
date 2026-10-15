@@ -32,14 +32,11 @@ public class ClientAddresses {
 	}
 
 	/**
-	 * The client's address, or for IPv6 its /64 network: one home or server usually gets
-	 * a whole /64, so per-address IPv6 limits would be trivial to sidestep.
-	 * <p>
-	 * When trusted, the last {@code X-Forwarded-For} entry is used: our own proxy appends
-	 * it, so earlier entries may be forged. Otherwise, or if that entry is not an address,
-	 * the connection's address.
+	 * The client's address. When trusted, the last {@code X-Forwarded-For} entry: our own
+	 * proxy appends it, so earlier entries may be forged. Otherwise, or if that entry is
+	 * not an address, the connection's address. Use it, never keep it.
 	 */
-	public String rateLimitKey(HttpServletRequest request) {
+	public Optional<InetAddress> address(HttpServletRequest request) {
 		Optional<InetAddress> forwarded = Optional.empty();
 		if (this.trustForwardedFor) {
 			String header = request.getHeader(FORWARDED_FOR);
@@ -47,9 +44,16 @@ public class ClientAddresses {
 				forwarded = parse(header.substring(header.lastIndexOf(',') + 1).trim());
 			}
 		}
-		return forwarded.or(() -> parse(request.getRemoteAddr()))
-			.map(ClientAddresses::key)
-			.orElse("unknown");
+		return forwarded.or(() -> parse(request.getRemoteAddr()));
+	}
+
+	/**
+	 * The client's {@link #address address}, or for IPv6 its /64 network: one home or
+	 * server usually gets a whole /64, so per-address IPv6 limits would be trivial to
+	 * sidestep.
+	 */
+	public String rateLimitKey(HttpServletRequest request) {
+		return address(request).map(ClientAddresses::key).orElse("unknown");
 	}
 
 	private static String key(InetAddress address) {

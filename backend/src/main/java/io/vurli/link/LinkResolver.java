@@ -47,7 +47,7 @@ public class LinkResolver {
 		if (link.expiresAt() != null && !this.clock.instant().isBefore(link.expiresAt())) {
 			return GONE;
 		}
-		return new LinkResolution.Redirect(link.targetUrl());
+		return new LinkResolution.Redirect(link.linkId(), link.targetUrl());
 	}
 
 }

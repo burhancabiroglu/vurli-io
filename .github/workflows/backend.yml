@@ -37,6 +37,11 @@ jobs:
         with:
           validate-wrappers: true
 
+      # Ülke veritabanı (DB-IP, K44) repoda değil. İndirilebilirse MmdbCountryLookupTests
+      # gerçek dosyayla çalışır; db-ip.com'a ulaşılamazsa bu testler atlanır, build kırılmaz.
+      - name: Download country database
+        run: scripts/download-geoip.sh || echo "::warning title=GeoIP::DB-IP country database not downloaded; MmdbCountryLookupTests are skipped"
+
       # Testcontainers, runner'daki Docker ile gerçek PostgreSQL başlatır.
       - name: Build and test
         run: ./gradlew build --console=plain

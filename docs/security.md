@@ -27,7 +27,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Her link sorgusu oturumdaki kullanıcının workspace'iyle filtrelenir. Workspace kimliği istekten alınmaz.
 - Başka bir workspace'e ait kaynak istendiğinde `404` döner.
 
-**Test:** İki hesap açılır. A hesabı, B'nin link ID'siyle okuma, düzenleme, silme, istatistik ve QR işlemlerini dener; hepsi `404` almalı. Yeni eklenen her endpoint bu teste dahil edilir. *Uygulandı* (`LinkApiTests`: okuma, hedef, kapatma, silme, liste ve QR; istatistik M3'te eklenecek).
+**Test:** İki hesap açılır. A hesabı, B'nin link ID'siyle okuma, düzenleme, silme, istatistik ve QR işlemlerini dener; hepsi `404` almalı. Yeni eklenen her endpoint bu teste dahil edilir. *Uygulandı* (`LinkApiTests`: okuma, hedef, kapatma, silme, liste ve QR; `ClickStatisticsIntegrationTests`: istatistik).
 
 ## 3. Hesap ele geçirme
 
@@ -91,7 +91,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 ## 7. Kişisel veri
 
-- IP adresi veritabanına yazılmaz. Caddy erişim logları 7 gün tutulur.
+- IP adresi veritabanına yazılmaz; yalnızca ülke kodu saklanır. Referrer'dan yalnızca host saklanır, path ve query string'de veri ya da token olabilir. *Uygulandı* (`ClickStatisticsIntegrationTests` `click_events` tablosunun sütunlarını da denetler). Caddy erişim logları 7 gün tutulur.
 - Hedef URL'ler loglanmaz, çünkü query string'lerinde token bulunabilir.
 - Gizlilik politikası ve hesap silme özelliği kapalı betadan önce hazır olur.
 

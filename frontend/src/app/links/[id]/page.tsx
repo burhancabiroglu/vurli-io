@@ -9,10 +9,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { format, getDictionary } from "@/lib/i18n";
-import { type Link as VurliLink, isLinkId, linkState } from "@/lib/links";
+import { type LinkStatistics, type Link as VurliLink, isLinkId, linkState } from "@/lib/links";
 import { requireUser } from "@/lib/session";
 
 import { CopyButton, DeleteForm, ExpiryForm, StatusForm, TargetForm } from "./link-forms";
+import { LinkStats } from "./link-stats";
 
 export default async function LinkPage({ params, searchParams }: PageProps<"/links/[id]">) {
   const user = await requireUser();
@@ -20,7 +21,10 @@ export default async function LinkPage({ params, searchParams }: PageProps<"/lin
   if (!isLinkId(id)) {
     notFound();
   }
-  const result = await api<VurliLink>(`/api/v1/links/${id}`);
+  const [result, statsResult] = await Promise.all([
+    api<VurliLink>(`/api/v1/links/${id}`),
+    api<LinkStatistics>(`/api/v1/links/${id}/stats`),
+  ]);
   if (!result.ok) {
     if (result.status === 401) {
       redirect("/login");
@@ -31,8 +35,12 @@ export default async function LinkPage({ params, searchParams }: PageProps<"/lin
     throw new Error(`Loading link failed with status ${result.status}`);
   }
 
+  if (!statsResult.ok) {
+    throw new Error(`Loading statistics failed with status ${statsResult.status}`);
+  }
+
   const link = result.data;
-  const { t } = await getDictionary();
+  const { locale, t } = await getDictionary();
   const { created } = await searchParams;
   const state = linkState(link, new Date());
   const blocked = link.status === "BLOCKED";
@@ -92,6 +100,8 @@ export default async function LinkPage({ params, searchParams }: PageProps<"/lin
           </div>
         </CardContent>
       </Card>
+
+      <LinkStats stats={statsResult.data} locale={locale} t={t} />
 
       {blocked && <FormAlert message={t.link.blockedHint} />}
 

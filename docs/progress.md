@@ -6,18 +6,53 @@ Son güncelleme: 2026-10-15
 
 M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve kötüye kullanım) devam ediyor**:
 
-1. Hız sınırları ve kotalar: tamamlandı (aşağıdaki kayıt).
-2. İstatistik: sırada.
-3. Yönetici paneli.
+1. Hız sınırları ve kotalar: tamamlandı (`68cb7d9`, CI yeşil `f791930`).
+2. İstatistik: tamamlandı (aşağıdaki kayıt).
+3. Yönetici paneli: sırada.
 4. Web Risk ve bildirim formu.
 5. Yük testi.
 
 ## Sıradaki adım
 
-1. Yönlendirme testi düzeltmesinin Backend CI sonucunu kontrol et.
-2. M3 dilim 2, istatistik: tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler. Önce ülke verisinin kaynağı seçilmeli: MaxMind GeoLite2 ücretsiz ama hesap ve lisans anahtarı istiyor; DB-IP Lite hesapsız, CC BY 4.0 ile atıf istiyor.
+1. Dilim 2 commit'inin üç CI işini kontrol et.
+2. M3 dilim 3, yönetici paneli (`admin.vurli.io`, K43): ADMIN rolü, TOTP ile iki adımlı giriş, Spring Security CSRF, ayrı oturum çerezi, link ve hesap arama, engelleme, denetim kaydı. Önce TOTP kütüphanesi ve ilk yöneticinin nasıl oluşturulacağı seçilmeli.
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 2: istatistik
+
+- Kararlar: K44 (ülke verisi DB-IP Lite), K45 (gün UTC), K46 (grafik shadcn chart / Recharts).
+- Şema: `V5__create_click_stats.sql` (`click_events`, `link_daily_stats`).
+- `link`: yönlendirme sonucu artık linkin kimliğini de taşıyor (`LinkSnapshot`, `LinkResolution.Redirect`).
+- `analytics` modülü:
+  - `ClickRecorder`: bot, önizleme ve prefetch ayıklama.
+  - `ClickWriter`: bellek kuyruğu ve saniyede bir toplu yazma.
+  - `UserAgents`, `ReferrerHosts`.
+  - `MmdbCountryLookup` (`com.maxmind.db:maxmind-db` 4.2.0, çalışma zamanı bağımlılığı yok).
+  - `DailySummaries`: gece özeti ve 90 günlük saklama.
+  - `ClickStatistics` ve `GET /api/v1/links/{id}/stats`.
+- `abuse.ClientAddresses` artık adresin kendisini de veriyor; ülke araması hız sınırlarıyla aynı istemci adresini kullanıyor.
+- `backend/scripts/download-geoip.sh` DB-IP'nin aylık dosyasını `backend/data/geoip/`'e indiriyor (gitignore'da). Backend CI'ı dosyayı indirmeyi deniyor; başarısız olursa uyarı yazıyor, gerçek dosya testleri atlanıyor.
+- Panel: link sayfasında istatistik kartı (toplam, son 30 gün, günlük grafik, referrer, ülke ve cihaz listeleri, DB-IP atfı). Ülke adları `Intl.DisplayNames` ile dile göre yazılıyor.
+- Yol üstünde bulunan sorunlar:
+  - **shadcn chart ve CSP:** bileşen renkleri `dangerouslySetInnerHTML` ile satır içi `<style>` olarak yazıyordu. O parça çıkarıldı (K46). Recharts sunucuda `style` öznitelikleri ürettiği için grafik yalnızca tarayıcıda çiziliyor. Production build'de uçtan uca test konsolda hata görmedi.
+  - **Görünmeyen sütunlar:** temanın `--chart-1` rengi neredeyse beyaz (oklch 0.87). Tarayıcıda sütunların var olduğu ama görünmediği ölçüldü; renk `--primary`'ye bağlandı.
+  - **Anycast adres:** gerçek dosya testi ilk yazıldığında Google DNS'in IPv6 adresini ABD bekliyordu; DB-IP onu Kanada'da gösteriyor. Testte ulusal akademik ağların adresleri kullanılıyor (ULAKBİM → TR, WIDE ve Osaka Üniversitesi → JP).
+  - **Testin kendi ziyaretleri:** Playwright'ın `request` aracı, testin cihaz ayarındaki masaüstü Chrome User-Agent'ını gönderiyor ve yönlendirme kontrolleri tıklama sayılıyordu. Kontrol istekleri izleme aracı User-Agent'ı gönderiyor; Playwright, Puppeteer ve Selenium da bot listesinde.
+  - **TRUNCATE:** `LinkManagementIntegrationTests` her testten önce `links`'i boşaltıyor; yeni yabancı anahtarlar yüzünden yeni tablolar da listeye eklendi.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 272 test, 0 başarısız, 0 atlanan (DB-IP dosyası yerelde var).
+    - `ClickStatisticsIntegrationTests` (5): tarayıcı ziyareti sayılıyor, bot, User-Agent'sız, prefetch ve HEAD sayılmıyor; referrer'dan yalnızca host (`?token=secret` yok) ve tabloda IP sütunu yok; özet ve canlı kayıt birlikte, bir gün iki kez sayılmadan (toplam 6, 30 günde 5, gün gün doğru sayılar); gece yarısı UTC sınırı (23:59:59.999 dün, 00:00 bugün); işin iki kez çalışması sonucu değiştirmiyor; 100 günlük ham kayıt önce özetlenip sonra siliniyor; başka hesap 404, oturumsuz 401.
+    - `UserAgentsTests` (32), `ReferrerHostsTests` (15), `ClickWriterTests` (2: dolu kuyruk ve yazma hatası atıyor, istisna fırlatmıyor), `MmdbCountryLookupTests` (2, gerçek DB-IP dosyasıyla).
+    - Negatif kontroller (her biri ayrı, sonra geri alındı): HEAD'in sayılması, bot ayıklamanın kaldırılması, canlı sorguda "özeti olan günleri dışla" koşulunun kaldırılması, silmenin özetten önce yapılması, istatistik uç noktasında sahiplik kontrolünün kaldırılması ve bugünün de özetlenmesi testleri kırdı.
+  - `cd frontend`: lint, typecheck, `npm test` (65 test; yeni `withOther`, `percent`), build, `npm audit --omit=dev --audit-level=high` (0 açık; Recharts 3.8.0 ile 167 paketin imzası doğrulandı).
+  - `npm run e2e` (production build, gerçek backend): 2 test geçti. Akışa telefon User-Agent'ı ve Instagram referrer'ı ile bir ziyaret eklendi; kartta toplam 1, `instagram.com` ve "Telefon" görünüyor; kontrol amaçlı diğer ziyaretler sayılmadı; konsolda hata yok.
+  - Gerçek sunucuda: `X-Forwarded-For` ile Türkiye ve Japonya adreslerinden 7, adres belirtmeden 1 tarayıcı ziyareti ve 1 Twitterbot ziyareti. API 8 tıklama, ülkeler TR 5, JP 2, bilinmiyor 1 döndü; Twitterbot sayılmadı. Yerel veritabanına geçmiş günler için örnek tıklamalar eklenip kart tarayıcıda incelendi.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Ana sayfadaki link listesinde tıklama sayısı yok; yalnızca link sayfasında.
+  - iPadOS Safari kendini Mac olarak tanıttığı için masaüstü sayılıyor.
+  - Canlı ortamda DB-IP dosyasının aylık güncellenmesi M4'te (cron veya Compose işi).
 
 ### 2026-10-15 — CI hatası: hız sınırı testlerinde zamanlama
 
