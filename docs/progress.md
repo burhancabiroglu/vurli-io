@@ -13,10 +13,19 @@ M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. M2 dilimleri:
 
 ## Sıradaki adım
 
-1. Dilim 4 commit'inin üç CI işini (Backend, Frontend, E2E) kontrol et. E2E iş akışı yeni; ilk çalışmada sorun çıkarsa log'u artifact olarak saklanıyor.
-2. M3, istatistik ve kötüye kullanım ([yol haritası](roadmap.md)). Önce dilimlere bölünmeli; giriş, kayıt ve link oluşturmadaki hız sınırları (A04) en öncelikli parça, çünkü kayıt uç noktası şu an başkalarının adreslerine e-posta göndermek için kötüye kullanılabilir.
+M3, istatistik ve kötüye kullanım ([yol haritası](roadmap.md)). Önce dilimlere bölünmeli; giriş, kayıt ve link oluşturmadaki hız sınırları (A04) en öncelikli parça, çünkü kayıt uç noktası şu an başkalarının adreslerine e-posta göndermek için kötüye kullanılabilir.
 
 ## Kayıt
+
+### 2026-10-15 — Dependabot güncellemesinin geri alınması
+
+- Dilim 4 (`6f1f9ce`) için Backend, Frontend ve ilk kez çalışan E2E işi yeşil.
+- Dependabot'un birleştirilen ilk npm PR'ı (#1) üç büyük sürüm atlaması içeriyordu: TypeScript 5→7, ESLint 9→10, `@types/node` 22→26. PR'daki Frontend işi zaten kırmızıydı; birleştirmeden sonra `main` de kırmızıya döndü.
+  - typescript-eslint TypeScript 7'yi desteklemiyor (`eslint-config-next` üzerinden geliyor; desteklediği aralık `<6.1`); lint açılırken çöküyor.
+  - `eslint-config-next`'in import, react ve jsx-a11y eklentileri en fazla ESLint 9'u destekliyor.
+  - `@types/node` 26, `.nvmrc`'deki Node 22 ile uyuşmuyor.
+- Düzeltme: `package.json` ve `package-lock.json` `6f1f9ce`'deki haline döndü. `dependabot.yml`'de bu üç paketin büyük sürümleri yok sayılıyor; küçük sürümler ve diğer paketler gelmeye devam ediyor.
+- Doğrulama: `npm ci`, `npm audit --omit=dev --audit-level=high` (0 açık), `npm run lint`, `npm run typecheck`, `npm test` (54 test) ve `npm run build` geçti.
 
 ### 2026-10-15 — M2 dilim 4: link ekranları
 
