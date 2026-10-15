@@ -8,23 +8,55 @@ import java.time.Duration;
 import java.util.EnumMap;
 import java.util.Map;
 
+import io.github.bucket4j.TimeMeter;
 import io.vurli.abuse.internal.RateLimitProperties;
 import org.junit.jupiter.api.Test;
 
 class RateLimiterTests {
 
-	private final RateLimiter limiter = new RateLimiter(properties(3, Duration.ofMinutes(1)));
+	private final ManualTime time = new ManualTime();
+
+	private final RateLimiter limiter = new RateLimiter(properties(3, Duration.ofMinutes(1)), this.time);
 
 	@Test
-	void allowsTheCapacityThenRejectsWithAWait() {
+	void allowsTheCapacityThenRejectsWithTheExactWait() {
 		for (int i = 0; i < 3; i++) {
 			this.limiter.consume(RateLimit.LOGIN_PER_IP, "a");
 		}
 
+		// 3 per minute: one token comes back every 20 seconds.
 		assertThatExceptionOfType(RateLimitExceededException.class)
 			.isThrownBy(() -> this.limiter.consume(RateLimit.LOGIN_PER_IP, "a"))
-			// One token per 20 seconds comes back.
-			.satisfies((ex) -> assertThat(ex.retryAfterSeconds()).isBetween(1L, 20L));
+			.satisfies((ex) -> assertThat(ex.retryAfterSeconds()).isEqualTo(20));
+
+		this.time.advance(Duration.ofSeconds(15));
+		assertThatExceptionOfType(RateLimitExceededException.class)
+			.isThrownBy(() -> this.limiter.consume(RateLimit.LOGIN_PER_IP, "a"))
+			.satisfies((ex) -> assertThat(ex.retryAfterSeconds()).isEqualTo(5));
+	}
+
+	@Test
+	void tokensComeBackSmoothlyUpToTheCapacity() {
+		for (int i = 0; i < 3; i++) {
+			this.limiter.consume(RateLimit.LOGIN_PER_IP, "a");
+		}
+
+		this.time.advance(Duration.ofSeconds(20));
+		assertThat(this.limiter.tryConsume(RateLimit.LOGIN_PER_IP, "a")).isTrue();
+		assertThat(this.limiter.tryConsume(RateLimit.LOGIN_PER_IP, "a")).isFalse();
+
+		// A long pause refills to the capacity, never beyond.
+		this.time.advance(Duration.ofHours(1));
+		for (int i = 0; i < 3; i++) {
+			assertThat(this.limiter.tryConsume(RateLimit.LOGIN_PER_IP, "a")).isTrue();
+		}
+		assertThat(this.limiter.tryConsume(RateLimit.LOGIN_PER_IP, "a")).isFalse();
+	}
+
+	@Test
+	void waitsOfLessThanASecondAreRoundedUp() {
+		assertThat(new RateLimitExceededException(Duration.ofMillis(1)).retryAfterSeconds()).isEqualTo(1);
+		assertThat(new RateLimitExceededException(Duration.ofMillis(5001)).retryAfterSeconds()).isEqualTo(6);
 	}
 
 	@Test
@@ -61,6 +93,26 @@ class RateLimiterTests {
 			.withMessageContaining("LOGIN_FAILURES_PER_ACCOUNT");
 		assertThatExceptionOfType(IllegalStateException.class)
 			.isThrownBy(() -> new RateLimitProperties.Limit(0, Duration.ofMinutes(1)));
+	}
+
+	private static final class ManualTime implements TimeMeter {
+
+		private long nanos;
+
+		void advance(Duration duration) {
+			this.nanos += duration.toNanos();
+		}
+
+		@Override
+		public long currentTimeNanos() {
+			return this.nanos;
+		}
+
+		@Override
+		public boolean isWallClockBased() {
+			return false;
+		}
+
 	}
 
 	private static RateLimitProperties properties(int capacity, Duration period) {

@@ -10,8 +10,10 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
 import io.github.bucket4j.EstimationProbe;
+import io.github.bucket4j.TimeMeter;
 import io.vurli.abuse.internal.RateLimitProperties;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,10 +32,16 @@ public class RateLimiter {
 
 	private final Map<RateLimit, Limiter> limiters = new EnumMap<>(RateLimit.class);
 
+	@Autowired
 	public RateLimiter(RateLimitProperties properties) {
+		this(properties, TimeMeter.SYSTEM_NANOTIME);
+	}
+
+	/** With a controllable clock, so tests can check refills and waits exactly. */
+	RateLimiter(RateLimitProperties properties, TimeMeter time) {
 		for (RateLimit limit : RateLimit.values()) {
 			RateLimitProperties.Limit config = properties.limit(limit);
-			this.limiters.put(limit, new Limiter(config.capacity(), config.period()));
+			this.limiters.put(limit, new Limiter(config.capacity(), config.period(), time));
 		}
 	}
 
@@ -74,15 +82,19 @@ public class RateLimiter {
 
 		private final Bandwidth bandwidth;
 
+		private final TimeMeter time;
+
 		private final Cache<String, Bucket> buckets;
 
-		Limiter(int capacity, Duration period) {
+		Limiter(int capacity, Duration period, TimeMeter time) {
+			this.time = time;
 			this.bandwidth = Bandwidth.builder().capacity(capacity).refillGreedy(capacity, period).build();
 			this.buckets = Caffeine.newBuilder().expireAfterAccess(period).maximumSize(MAX_KEYS_PER_LIMIT).build();
 		}
 
 		Bucket bucket(String key) {
-			return this.buckets.get(key, (k) -> Bucket.builder().addLimit(this.bandwidth).build());
+			return this.buckets.get(key,
+					(k) -> Bucket.builder().addLimit(this.bandwidth).withCustomTimePrecision(this.time).build());
 		}
 
 	}

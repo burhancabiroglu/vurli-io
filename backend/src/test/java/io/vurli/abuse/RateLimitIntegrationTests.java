@@ -64,9 +64,15 @@ class RateLimitIntegrationTests {
 			login(address, TestAccounts.uniqueEmail(), "wrong password").andExpect(status().isUnauthorized());
 		}
 
-		login(address, TestAccounts.uniqueEmail(), "wrong password").andExpect(status().isTooManyRequests())
+		// Ten per minute: the next token is at most 6 seconds away. The exact wait depends on
+		// how long the attempts took (Argon2 is slow on CI); RateLimiterTests checks it exactly.
+		String retryAfter = login(address, TestAccounts.uniqueEmail(), "wrong password")
+			.andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.code").value("rate_limited"))
-			.andExpect(header().string(HttpHeaders.RETRY_AFTER, "6"));
+			.andReturn()
+			.getResponse()
+			.getHeader(HttpHeaders.RETRY_AFTER);
+		assertThat(Integer.parseInt(retryAfter)).isBetween(1, 6);
 		login(TestAccounts.randomAddress(), TestAccounts.uniqueEmail(), "wrong password")
 			.andExpect(status().isUnauthorized());
 	}

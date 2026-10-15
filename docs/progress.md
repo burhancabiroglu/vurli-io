@@ -14,10 +14,18 @@ M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve k
 
 ## Sıradaki adım
 
-1. Dilim 1 commit'inin üç CI işini kontrol et.
+1. Zamanlama düzeltmesinin Backend CI sonucunu kontrol et.
 2. M3 dilim 2, istatistik: tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler. Önce ülke verisinin kaynağı seçilmeli: MaxMind GeoLite2 ücretsiz ama hesap ve lisans anahtarı istiyor; DB-IP Lite hesapsız, CC BY 4.0 ile atıf istiyor.
 
 ## Kayıt
+
+### 2026-10-15 — CI hatası: hız sınırı testinde zamanlama
+
+- `68cb7d9` için Frontend ve E2E yeşil, Backend kırmızı ([çalışma 38718274867](https://github.com/burhancabiroglu/vurli-io/actions/runs/38718274867)). Log'lar oturum açmadan okunamadığı için sorun yerelde yeniden üretildi.
+- Kök neden: `loginAttemptsAreLimitedPerAddress` testi `Retry-After` değerini tam olarak `6` bekliyordu. Kova jetonları sürekli doldurduğu için bekleme süresi, 10 girişin ne kadar sürdüğüne bağlı: yerelde 0,2 sn sürüyor ve değer 6'ya yuvarlanıyor. CI'da Argon2 hash'leri daha yavaş; giriş 1 saniyeyi geçince değer 5 oluyor.
+- Doğrulama: teste geçici olarak 1,5 saniyelik bekleme eklendi ve test yerelde de aynı şekilde başarısız oldu.
+- Düzeltme: entegrasyon testi artık 1–6 saniye aralığını kabul ediyor. Kesin değerler birim testine taşındı. `RateLimiter`, Bucket4j'nin `TimeMeter`'ını alan ikinci bir kurucuyla elle ilerletilen saatle test ediliyor: tam bekleme süresi (20 sn, 15 sn sonra 5 sn), jetonların düzgün geri dolması ve kapasiteyi aşmaması, bir saniyeden kısa beklemelerin yukarı yuvarlanması.
+- Sonuç: `./gradlew build` 216 test, 0 başarısız. 1,5 saniyelik bekleme eklenmiş haliyle de yeni test geçti; bekleme kaldırıldı.
 
 ### 2026-10-15 — M3 dilim 1: hız sınırları ve kotalar
 
