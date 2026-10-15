@@ -4,20 +4,39 @@ Son güncelleme: 2026-10-15
 
 ## Şu an
 
-M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve kötüye kullanım) devam ediyor**:
-
-1. Hız sınırları ve kotalar: tamamlandı.
-2. İstatistik: tamamlandı.
-3. Yönetici paneli: tamamlandı (`47933d3`, CI yeşil).
-4. Web Risk ve bildirim formu: tamamlandı (aşağıdaki kayıt); Web Risk anahtarı M4'te.
-5. Yük testi: sırada; M3'ün son "bitti" şartı.
+M0, M1, M2 ve M3 tamamlandı; repo `burhancabiroglu/vurli-io`. M3'ün "bitti" şartları karşılandı: yönetici engellemesinin uçtan uca testi (`e2e/admin-block.spec.ts`) ve kaydedilen yük testi sonuçları ([mimari, Ölçek](architecture.md#ölçek)).
 
 ## Sıradaki adım
 
-1. Dilim 4 commit'inin üç CI işini kontrol et.
-2. M3 dilim 5, ilk yük testi: yönlendirmenin gecikmesi ve kapasitesi ölçülür, sonuçlar kaydedilir (araç k6 veya Gatling; seçilmeli). Hız sınırları yük testinde yönlendirmeyi kısacağı için test ortamının nasıl kurulacağı da kararlaştırılmalı.
+1. Dilim 5 commit'inin CI işlerini kontrol et.
+2. M4, yayın ve kapalı beta ([yol haritası](roadmap.md)). Açık kararlar: A01 (e-posta servisi), A02 (VPS), A05 (şirket, gizlilik politikası, kullanım koşulları). Önce dağıtım dosyaları (Dockerfile'lar, canlı Compose, Caddy) ve sırlar (Web Risk anahtarı, TOTP anahtarı, veritabanı) planlanmalı.
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 5: ilk yük testi
+
+- Karar: K52 (Gatling, VPS benzeri konteyner, her ziyaret kendi adresiyle).
+- Eklenenler:
+  - Gatling Gradle eklentisi 3.16.0 ve `src/gatling/java/io/vurli/loadtest/RedirectSimulation.java`. Senaryolar: `browse` (10.000 link, %80'i ilk 200'e), `viral` (tek link) ve `limit` (tek adres).
+  - `backend/loadtest/compose.yaml`: production jar'ı ve ayarları; uygulama 2 vCPU / 2 GB, PostgreSQL 1 vCPU / 1 GB.
+  - `backend/loadtest/seed.sql` ve `backend/loadtest/run.sh`. Betik her çalıştırmadan sonra yazılan tıklama sayısını da gösteriyor.
+  - `gradle/gradle-daemon-jvm.properties`: Gradle'ın kendisi de Java 25'te çalışıyor.
+- Sonuçlar [mimari belgesinde](architecture.md#ölçek):
+  - 1.000–8.000 istek/sn kademelerinde hiç hata yok; p99 2–16 ms.
+  - 8.000/sn'de uygulama 2 çekirdeğin üçte ikisini kullandı.
+  - Hiçbir kademede tıklama düşmedi.
+  - Tek adresten gelen yükte isteklerin %55'i 429 aldı, beklenen oranda.
+- Yol üstünde bulunan sorunlar:
+  - **Gatling eski Java'yla çalışıyordu:** eklenti simülasyonları Gradle daemon'ının JVM'inde çalıştırıyor ve bu makinede daemon Java 17'deydi; Java 25 ile derlenen sınıf yüklenemedi. Daemon artık Java 25'te. CI zaten Java 25 kuruyor.
+  - **İlk ölçüm test düzeneğini ölçtü:** her ziyaret yeni bir TCP bağlantısı açtığı için ilk çalıştırmada her kademede yaklaşık 11.000 başarılı ziyaretten sonra hatalar başladı (250/sn'de %31, 2.000/sn'de %87). Kısa (15 sn) bir çalıştırma hatasız geçti ve uygulama işlemcisinin dörtte birini kullanıyordu; sınırın Mac ve Docker Desktop'taki port tükenmesi olduğu böyle anlaşıldı. Canlıda uygulamaya bağlantıları Caddy açar ve yeniden kullanır; senaryo da artık ortak bir bağlantı havuzu kullanıyor. Bu ilk sonuçlar kayıt dışı bırakıldı.
+  - **Hız sınırını ölçmeyen senaryo:** tek adres senaryosu saniyede 10 istekle 50 saniye sürüyordu. Bu hızda kova (300 jeton, saniyede 5 yenileme) ancak 60 saniyede boşalırdı; senaryo üstelik 429'u başarılı sayıyordu. Artık saniyede 20 istekle 60 saniye sürüyor ve 429 oranının %30–75 arasında olmasını şart koşuyor. Ölçülen oran %55.
+  - **Betikte uygulanmamış değişiklik:** betiği düzenleyen Python değiştirmesi eşleşmemişti ve sessizce geçmişti; betik yeniden yazıldı.
+- Doğrulama:
+  - `cd backend && loadtest/run.sh`: `RATES="1000 2000 4000 8000"`, `VIRAL_RATE=8000` ile çalıştı; bütün kademelerin doğrulamaları geçti. Ardından `limit` senaryosu saniyede 20 istekle 60 saniye çalıştı: 585 yönlendirme, 720 adet 429; doğrulama geçti.
+  - Kaynak kullanımı test boyunca 5 saniyede bir `docker stats` ile örneklendi.
+  - `cd backend && ./gradlew build`: 350 test, 0 başarısız; Gatling görevleri build'e girmiyor (`--dry-run` ile görüldü).
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular: TLS ve Caddy yolda değildi; canlı sunucuda bileşenler aynı CPU'yu paylaşacak; önbellekte olmayan çok sayıda linke yayılan trafik ölçülmedi. Canlıda tekrar ölçülmeli (M4).
 
 ### 2026-10-15 — M3 dilim 4: Web Risk ve bildirim formu
 

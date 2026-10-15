@@ -2,6 +2,8 @@ plugins {
 	java
 	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
+	// Load tests in src/gatling (M3); run with ./gradlew gatlingRun, never part of build.
+	id("io.gatling.gradle") version "3.16.0"
 }
 
 group = "io.vurli"

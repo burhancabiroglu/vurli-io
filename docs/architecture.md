@@ -212,15 +212,44 @@ Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç (K30), `admin.vurli.i
 
 ## Ölçek
 
-Bu bölüm mülakat için. Buradaki sayılar M3'teki yük testiyle ölçülecek; şimdilik tahmin.
+Bu bölüm mülakat için. Sayılar M3'teki ilk yük testinden (2026-10-15, K52).
 
-- Yük okuma ağırlıklı: link oluşturma seyrek, yönlendirme sık. Tek PostgreSQL ve bellek cache'i ilk aşama için fazlasıyla yeterli.
-- Tek bir link viral olursa sorun çıkmaz; cache sayesinde veritabanına yük binmez.
-- İlk darboğaz büyük ihtimalle tıklama yazımı olur. Toplu yazım bunu baştan hafifletiyor. Sonraki adım `click_events` tablosunu aylık bölümlemek.
-- Ölçek gerekirse izlenecek sıra:
-  1. sunucuyu büyütmek,
-  2. ikinci instance eklemek ve cache silme işlemini yaymak,
-  3. okuma replikası eklemek,
-  4. yönlendirmeyi ayrı bir servise ayırmak.
+**Nasıl ölçüldü:** `backend/loadtest/run.sh`.
+- Production jar'ı, production ayarlarıyla, Docker'da çalışıyor: uygulama 2 vCPU ve 2 GB, PostgreSQL 1 vCPU ve 1 GB.
+- 10.000 link var. Ziyaretlerin %80'i ilk 200 linke gidiyor, geri kalanı bütün linklere dağılıyor.
+- Her ziyaret farklı bir ziyaretçi adresi, telefon tarayıcısı User-Agent'ı ve referrer taşıyor. Yani tıklamalar gerçekten sayılıp yazılıyor ve hız sınırlayıcı da yolda.
+- Gatling, ziyaretleri canlıdaki Caddy gibi kalıcı bağlantılardan oluşan bir havuz (en fazla 100 bağlantı) üzerinden gönderiyor.
+- Her kademe 10 saniyelik artışın ardından 60 saniye sabit hızda sürüyor. Ortalama hız artış süresini de kapsadığı için hedefin biraz altında.
 
-  Her adım ancak ölçülen bir darboğaz varsa atılır.
+| Senaryo | Hedef | Ortalama | p50 | p95 | p99 | En yüksek | Hata | Yazılan tıklama | Uygulama CPU (en çok) |
+|---|---|---|---|---|---|---|---|---|---|
+| 10.000 link | 1.000/sn | 929/sn | 0 ms | 1 ms | 2 ms | 150 ms | 0 | 65.005 / 65.005 | %64 |
+| 10.000 link | 2.000/sn | 1.857/sn | 0 ms | 1 ms | 2 ms | 16 ms | 0 | 130.005 / 130.005 | %43 |
+| 10.000 link | 4.000/sn | 3.714/sn | 0 ms | 1 ms | 3 ms | 22 ms | 0 | 260.005 / 260.005 | %74 |
+| 10.000 link | 8.000/sn | 7.324/sn | 1 ms | 4 ms | 16 ms | 1.082 ms | 0 | 520.005 / 520.005 | %132 |
+| Tek viral link | 8.000/sn | 7.324/sn | 1 ms | 5 ms | 22 ms | 1.067 ms | 0 | 520.005 / 520.005 | %132 |
+
+CPU, 2 çekirdeğin toplamı üzerinden (%200 tam dolu). Uygulamanın belleği en çok 954 MB, PostgreSQL'inki 171 MB oldu. 8.000/sn'de isteklerin %0,03–0,06'sı 800 ms ile 1,1 sn arasında sürdü; geri kalanı 22 ms'nin altında kaldı.
+
+**Hız sınırı:** tek bir adresten 60 saniye boyunca saniyede 20 ziyaret gönderildi. 1.305 ziyaretin 585'i yönlendirildi, 720'si 429 aldı (%55). Bu, kovanın beklenen davranışı: başta 300 jeton, ardından saniyede 5. Reddedilen ziyaretler tıklama sayılmadı.
+
+**Ne söylüyor:**
+- Yönlendirme önbellekten hizmet veriyor; PostgreSQL'e yük neredeyse yalnızca toplu tıklama yazımından geliyor. 8.000/sn'de bile tek çekirdeğin %20'sini geçmedi.
+- Hiçbir kademede tıklama düşmedi. Kuyruk ve saniyelik toplu yazım, 8.000/sn'yi kayıpsız taşıdı. "İlk darboğaz tıklama yazımı olur" tahmini bu ölçekte doğrulanmadı.
+- Tek bir viral link, dağılmış trafikten farklı davranmıyor; önbellekteki tek kayıt, yükü veritabanından uzak tutuyor.
+- 8.000/sn'de uygulama 2 çekirdeğin üçte ikisini kullandı; sınır henüz görülmedi. Bunun bir kısmı ölçüm düzeninden kaynaklanabilir: Gatling aynı Mac'te çalıştı. Ürünün ilk hedefi için gereken trafiğin çok üstünde.
+
+**Sınırlar (sayıları okurken):**
+- TLS (Caddy) yolda değildi.
+- Canlı sunucuda uygulama, PostgreSQL, Next.js ve Caddy aynı 2 vCPU'yu paylaşacak; buradakinden düşük sayılar beklenmeli.
+- Ağ gecikmesi yok (yerel bağlantı).
+- Bütün linkler önbelleğe sığdı (100.000 girdi sınırı). Önbellekte olmayan çok sayıda farklı link ziyaret edilirse her ilk ziyaret bir veritabanı sorgusu olur; bu ölçülmedi.
+- İlk çalıştırmada her ziyaret yeni bir TCP bağlantısı açıyordu. Mac ve Docker Desktop'ta yaklaşık 11.000 ziyaretten sonra port tükendi ve istekler hata aldı. Bu, uygulamanın değil test düzeneğinin sınırıydı; canlıda uygulamaya bağlantıları Caddy açar ve yeniden kullanır.
+
+**Ölçek gerekirse izlenecek sıra:**
+1. Sunucuyu büyütmek.
+2. İkinci instance eklemek ve önbellek silmeyi instance'lara yaymak.
+3. Okuma replikası eklemek.
+4. Yönlendirmeyi ayrı bir servise ayırmak.
+
+Her adım ancak ölçülen bir darboğaz varsa atılır. Sonraki ölçüm canlı sunucuda, Caddy ve TLS ile yapılmalı (M4).

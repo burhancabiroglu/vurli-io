@@ -2,7 +2,7 @@
 
 Küçük işletmeler ve içerik üreticileri için güvenli link kısaltma servisi. Java ve Spring Boot ile geliştiriliyor. Alan adı: **vurli.io**.
 
-**Durum (2026-10-15):** M1 (link çekirdeği) ve M2 (hesaplar ve kullanıcı paneli) tamamlandı: kayıttan QR indirmeye kadar bütün akış tarayıcıda çalışıyor ve uçtan uca testle doğrulanıyor. Sıradaki kilometre taşı M3: istatistik ve kötüye kullanım. Ayrıntı: [ilerleme](docs/progress.md).
+**Durum (2026-10-15):** M1 (link çekirdeği), M2 (hesaplar ve kullanıcı paneli) ve M3 (istatistik, hız sınırları, yönetici paneli, kötüye kullanım, yük testi) tamamlandı. Sıradaki kilometre taşı M4: yayın ve kapalı beta. Ayrıntı: [ilerleme](docs/progress.md).
 
 ## Belgeler
 
@@ -117,6 +117,14 @@ cd frontend && npx playwright install chromium
 
 ```bash
 cd frontend && npm run build && npm run e2e
+```
+
+### Yük testi
+
+Production jar'ını planlanan sunucuya yakın kaynaklarla Docker'da başlatır, 10.000 link ekler ve Gatling senaryolarını sırayla çalıştırır (yaklaşık 10 dakika). Raporlar `backend/build/reports/gatling` altında; son sonuçlar [mimari belgesinde](docs/architecture.md#ölçek).
+
+```bash
+cd backend && loadtest/run.sh
 ```
 
 ### CI

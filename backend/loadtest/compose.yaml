@@ -1,0 +1,38 @@
+# Load test environment (M3): the production jar with production settings, close to the
+# planned server (K17, A02: Hetzner, 2 vCPU, 4 GB). On the real server the application,
+# PostgreSQL, Next.js and Caddy share those CPUs, so real numbers will be lower; TLS
+# (Caddy) is not in the path here. Started by loadtest/run.sh, never by bootRun.
+name: vurli-loadtest
+
+services:
+  postgres:
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=vurli'
+      - 'POSTGRES_USER=vurli'
+      - 'POSTGRES_PASSWORD=loadtest'
+    cpus: 1
+    mem_limit: 1g
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vurli -d vurli']
+      interval: 2s
+      retries: 30
+
+  app:
+    image: 'eclipse-temurin:25-jre'
+    command: ['java', '-XX:MaxRAMPercentage=75', '-jar', '/app/vurli.jar']
+    volumes:
+      - '../build/libs/vurli-0.0.1-SNAPSHOT.jar:/app/vurli.jar:ro'
+    environment:
+      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/vurli'
+      - 'SPRING_DATASOURCE_USERNAME=vurli'
+      - 'SPRING_DATASOURCE_PASSWORD=loadtest'
+      # Required at startup; run.sh passes a fresh random key.
+      - 'VURLI_ADMIN_TOTP_KEY=${VURLI_ADMIN_TOTP_KEY:?run loadtest/run.sh}'
+    ports:
+      - '127.0.0.1:18080:8080'
+    cpus: 2
+    mem_limit: 2g
+    depends_on:
+      postgres:
+        condition: service_healthy

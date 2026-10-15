@@ -2,3 +2,4 @@
 *.bat text eol=crlf
 *.jar binary
 /backend/scripts/*.sh text eol=lf
+/backend/loadtest/*.sh text eol=lf
