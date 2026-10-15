@@ -3,9 +3,9 @@ name: Backend
 on:
   push:
     branches: [main]
-    paths: ['backend/**', '.github/workflows/backend.yml']
+    paths: ['backend/**', '.github/workflows/backend.yml', '.github/scripts/junit-annotations.py']
   pull_request:
-    paths: ['backend/**', '.github/workflows/backend.yml']
+    paths: ['backend/**', '.github/workflows/backend.yml', '.github/scripts/junit-annotations.py']
 
 # İş yalnızca kodu okur; varsayılan token'a yazma yetkisi verilmez.
 permissions:
@@ -40,3 +40,10 @@ jobs:
       # Testcontainers, runner'daki Docker ile gerçek PostgreSQL başlatır.
       - name: Build and test
         run: ./gradlew build --console=plain
+
+      # Job log'ları yalnızca oturum açmış kullanıcıya açık; açıklamalar (annotation)
+      # ise run sayfasında ve API'de herkese görünür. Kırılan testin adı ve hatası
+      # böylece log'a girmeden okunabilir.
+      - name: Report failed tests
+        if: failure()
+        run: python3 -I "$GITHUB_WORKSPACE/.github/scripts/junit-annotations.py" build/test-results/test
