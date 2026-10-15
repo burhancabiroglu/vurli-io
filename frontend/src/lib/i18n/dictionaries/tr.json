@@ -78,7 +78,9 @@
     "alias_taken": "Bu ad daha önce alınmış. Başka bir ad dene.",
     "version_conflict": "Link bu arada başka bir yerde değişti. Güncel hali aşağıda; gerekirse tekrar dene.",
     "link_blocked": "Bu link engellendi, değiştirilemez.",
-    "link_not_found": "Link bulunamadı."
+    "link_not_found": "Link bulunamadı.",
+    "rate_limited": "Çok fazla deneme yaptın. Biraz bekleyip tekrar dene.",
+    "link_quota_exceeded": "Son 24 saatte oluşturabileceğin link sınırına ulaştın. Daha sonra tekrar dene."
   },
   "links": {
     "createTitle": "Yeni link",

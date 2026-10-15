@@ -1,5 +1,6 @@
 package io.vurli.link.internal;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +18,9 @@ public interface LinkRepository extends JpaRepository<Link, UUID> {
 
 	/** Owner access: always scoped to the workspace, deleted links are invisible. */
 	Optional<Link> findByIdAndWorkspaceIdAndDeletedAtIsNull(UUID id, UUID workspaceId);
+
+	/** Includes deleted links: the daily quota counts creations, not what is left. */
+	long countByWorkspaceIdAndCreatedAtAfter(UUID workspaceId, Instant since);
 
 	/** A slice reads one extra row to know whether a next page exists, without a count query. */
 	Slice<Link> findByWorkspaceIdAndDeletedAtIsNull(UUID workspaceId, Pageable pageable);

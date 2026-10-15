@@ -38,11 +38,13 @@ Kullanıcı paneli Next.js BFF olarak yapılıyor ([K28](decisions.md#teknik)); 
 
 ## M3 — İstatistik ve kötüye kullanım (35–50 saat)
 
-- Tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler
-- Web Risk entegrasyonu, periyodik tarama, bildirim formu, denetim kaydı
-- Yönetici paneli (Spring + Thymeleaf, cPanel benzeri): link ve hesap arama, engelleme
-- Hız sınırları ve kotalar
-- İlk yük testi (k6 veya Gatling): yönlendirme gecikmesi ve kapasitesi ölçülür
+Dilimler, bu sırayla:
+
+1. **Hız sınırları ve kotalar** ([K42](decisions.md#teknik)): giriş, kayıt, şifre sıfırlama, link oluşturma ve yönlendirme. Ziyaretçi IP'si Next.js'ten Spring'e iletilir.
+2. **İstatistik:** tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler.
+3. **Yönetici paneli** (Spring + Thymeleaf, cPanel benzeri, `admin.vurli.io`, [K43](decisions.md#teknik)): TOTP ile giriş, link ve hesap arama, engelleme, denetim kaydı.
+4. **Web Risk ve bildirim:** oluşturmada ve hedef değişiminde kontrol, periyodik tarama, kötüye kullanım bildirim formu.
+5. **İlk yük testi** (k6 veya Gatling): yönlendirme gecikmesi ve kapasitesi ölçülür.
 
 **Bitti sayılır:** yönetici engellemesi uçtan uca (panel → yönlendirme) testle doğrulandı ve yük testi sonuçları kaydedildi.
 

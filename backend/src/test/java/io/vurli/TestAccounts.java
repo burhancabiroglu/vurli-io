@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import io.vurli.account.AccountManagement;
 import jakarta.servlet.http.Cookie;
@@ -22,6 +23,12 @@ public final class TestAccounts {
 	public static final String SESSION_COOKIE = "VURLI_SESSION";
 
 	private TestAccounts() {
+	}
+
+	/** An address from 10.0.0.0/8, distinct enough that tests do not share rate limits. */
+	public static String randomAddress() {
+		ThreadLocalRandom random = ThreadLocalRandom.current();
+		return "10." + random.nextInt(256) + "." + random.nextInt(256) + "." + random.nextInt(1, 255);
 	}
 
 	public static String uniqueEmail() {

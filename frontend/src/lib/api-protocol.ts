@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 /** Name of the Spring session cookie; the panel relays it, never reads it. */
 export const SESSION_COOKIE = "VURLI_SESSION";
 
@@ -33,4 +35,17 @@ export function errorKeyFrom(body: unknown): string {
     return "unexpected";
   }
   return typeof reason === "string" && /^[A-Z_]{1,40}$/.test(reason) ? `${code}.${reason}` : code;
+}
+
+/**
+ * The visitor's address to pass on to Spring for rate limits: the last X-Forwarded-For
+ * entry, which Caddy (or Next.js itself, without a proxy) sets. Earlier entries can be
+ * forged by the visitor. Anything that is not a plain IP address is dropped.
+ */
+export function clientAddressFrom(forwardedFor: string | null): string | null {
+  if (!forwardedFor) {
+    return null;
+  }
+  const last = forwardedFor.slice(forwardedFor.lastIndexOf(",") + 1).trim();
+  return isIP(last) !== 0 ? last : null;
 }

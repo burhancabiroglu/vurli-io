@@ -1,8 +1,8 @@
 import "server-only";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
-import { CLIENT_HEADER, SESSION_COOKIE, errorKeyFrom, sessionIdFrom } from "./api-protocol";
+import { CLIENT_HEADER, SESSION_COOKIE, clientAddressFrom, errorKeyFrom, sessionIdFrom } from "./api-protocol";
 import { getLocale } from "./i18n";
 
 /**
@@ -54,23 +54,36 @@ export async function apiFile(path: ApiPath): Promise<ApiResult<ApiFile>> {
   };
 }
 
-async function send(path: ApiPath, method: string, body?: unknown): Promise<Response> {
-  const cookieStore = await cookies();
-  const headers = new Headers({
+/**
+ * Headers every API call carries. Spring sees all requests coming from this server, so
+ * the visitor's address goes along for its per-address rate limits (K42).
+ */
+async function baseHeaders(): Promise<Headers> {
+  const result = new Headers({
     Accept: "application/json",
     "Accept-Language": await getLocale(),
     [CLIENT_HEADER]: "web",
   });
+  const address = clientAddressFrom((await headers()).get("x-forwarded-for"));
+  if (address) {
+    result.set("X-Forwarded-For", address);
+  }
+  return result;
+}
+
+async function send(path: ApiPath, method: string, body?: unknown): Promise<Response> {
+  const cookieStore = await cookies();
+  const requestHeaders = await baseHeaders();
   const session = cookieStore.get(SESSION_COOKIE)?.value;
   if (session) {
-    headers.set("Cookie", `${SESSION_COOKIE}=${session}`);
+    requestHeaders.set("Cookie", `${SESSION_COOKIE}=${session}`);
   }
   if (body !== undefined) {
-    headers.set("Content-Type", "application/json");
+    requestHeaders.set("Content-Type", "application/json");
   }
   return fetch(new URL(path, apiBaseUrl()), {
     method,
-    headers,
+    headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     cache: "no-store",
     redirect: "manual",
@@ -82,14 +95,11 @@ async function send(path: ApiPath, method: string, body?: unknown): Promise<Resp
  * host-only, HttpOnly, SameSite=Lax cookie. Spring changes the id on every login.
  */
 export async function login(email: string, password: string): Promise<ApiResult<unknown>> {
+  const loginHeaders = await baseHeaders();
+  loginHeaders.set("Content-Type", "application/json");
   const response = await fetch(new URL("/api/v1/auth/login", apiBaseUrl()), {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "Accept-Language": await getLocale(),
-      [CLIENT_HEADER]: "web",
-    },
+    headers: loginHeaders,
     body: JSON.stringify({ email, password }),
     cache: "no-store",
     redirect: "manual",

@@ -24,8 +24,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+// Paging tests create more links than the daily quota allows; the quota has its own tests.
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "vurli.daily-link-quota=1000")
 class LinkLifecycleIntegrationTests {
 
 	@Autowired

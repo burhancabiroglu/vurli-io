@@ -4,18 +4,58 @@ Son güncelleme: 2026-10-15
 
 ## Şu an
 
-M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. M2 dilimleri:
+M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve kötüye kullanım) devam ediyor**:
 
-1. Monorepo ve altyapı (`d3b5c10`).
-2. Hesaplar, Spring (`cf19570`).
-3. Panel iskeleti, Next.js (`3b6be32`).
-4. Link ekranları, Host kontrolü ve uçtan uca testler (aşağıdaki kayıt).
+1. Hız sınırları ve kotalar: tamamlandı (aşağıdaki kayıt).
+2. İstatistik: sırada.
+3. Yönetici paneli.
+4. Web Risk ve bildirim formu.
+5. Yük testi.
 
 ## Sıradaki adım
 
-M3, istatistik ve kötüye kullanım ([yol haritası](roadmap.md)). Önce dilimlere bölünmeli; giriş, kayıt ve link oluşturmadaki hız sınırları (A04) en öncelikli parça, çünkü kayıt uç noktası şu an başkalarının adreslerine e-posta göndermek için kötüye kullanılabilir.
+1. Dilim 1 commit'inin üç CI işini kontrol et.
+2. M3 dilim 2, istatistik: tıklama kuyruğu, bot ayıklama, GeoIP, günlük özet ve paneldeki grafikler. Önce ülke verisinin kaynağı seçilmeli: MaxMind GeoLite2 ücretsiz ama hesap ve lisans anahtarı istiyor; DB-IP Lite hesapsız, CC BY 4.0 ile atıf istiyor.
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 1: hız sınırları ve kotalar
+
+- `abuse` modülü: `RateLimiter` (Bucket4j 8.21.0, bellekte, Caffeine ile sınırlı), `RateLimit` (K42'deki beş sınır), `ClientAddresses` (son `X-Forwarded-For` değeri, IPv6 için /64).
+- Uygulanan yerler:
+  - Giriş: IP başına sınır ve e-posta başına başarısız deneme sınırı. İkincisi şifreden önce denetleniyor, başarısız denemeden sonra kaydediliyor.
+  - Kayıt, şifre sıfırlama ve doğrulama e-postası: IP başına ortak sınır.
+  - Link oluşturma: kullanıcı başına dakikada 10.
+  - Yönlendirme: IP başına dakikada 300. Sınırı aşan ziyaretçi 429 sayfası alıyor (`no-store`, `Retry-After`, `Location` yok).
+- Günlük 50 link kotası veritabanından sayılıyor (son 24 saat, silinenler dahil). K42'de bellekte sayılması öngörülmüştü; yeniden başlatmanın kotayı sıfırlamaması için değiştirildi, karar satırına not düşüldü.
+- Panel: `lib/api.ts` her Spring çağrısına ziyaretçinin adresini `X-Forwarded-For` olarak ekliyor; değer `clientAddressFrom` ile doğrulanıyor. Yeni hata mesajları: `rate_limited`, `link_quota_exceeded`.
+- Dev profili yerelde adres başına giriş ve e-posta sınırlarını 1000'e çıkarıyor, böylece uçtan uca testler tekrar tekrar çalışabiliyor. Gerçek değerler entegrasyon testlerinde sınanıyor.
+- Yol üstünde bulunan sorunlar:
+  - **Eski IPv4 yazımı:** Java `InetAddress.ofLiteral("1.2.3")` çağrısını geçerli adres sayıyor. Uydurma `X-Forwarded-For` değerleri için IPv4 artık yalnızca dört parçalı biçimde kabul ediliyor.
+  - **Testlerin birbirinin sınırını tüketmesi:** sınırlar Spring context'i boyunca yaşıyor ve bütün MockMvc istekleri `127.0.0.1`'den geliyordu. `TestcontainersConfiguration` artık her isteğe rastgele bir adres veriyor.
+  - **Kota ile sayfalama testi:** sayfa boyutu testi 101 link oluşturuyor; o test sınıfı için kota yükseltildi, kotanın kendi testleri ayrı.
+  - **Yenilenen jetonlar:** kovalar dakika içinde düzgün doluyor (yönlendirmede saniyede 5). Gerçek sunucuda sırayla gönderilen 300 istekten sonra 301. de geçti. Yavaş bir CI makinesinde testin rastgele kırılmaması için yönlendirme testi, 300 istekten sonra en fazla 50 ek istek içinde 429 bekliyor.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 214 test, 0 başarısız.
+    - `RateLimitIntegrationTests` (9): IP başına giriş (11. istek 429, `Retry-After: 6`, başka adres etkilenmiyor); e-posta başına başarısız giriş (10 farklı adresten sonra doğru şifre de 429, başka hesap etkilenmiyor); kayıtlı olmayan adres aynı davranıyor; 12 başarılı giriş sınıra takılmıyor; e-posta gönderen istekler ortak sınırda (6. kayıt 429, e-posta gitmedi, hesap oluşmadı); kullanıcı başına link sınırı; günlük kota (silinen link sayılıyor, 51. link 429 `link_quota_exceeded`, 25 saat sonra yeniden açılıyor); yönlendirme sınırı; `X-Forwarded-For`'un son değerinin anahtar olması.
+    - `ClientAddressesTests` (16), `RateLimiterTests` (4).
+    - Negatif kontroller (her biri ayrı ayrı, sonra geri alındı): hesap sınırının kaldırılması (2 test), başarılı girişlerin de sayılması (3), kayıtta e-posta sınırının kaldırılması (1), `X-Forwarded-For`'un ilk değerinin kullanılması (3), kotada `>=` yerine `>` (1), yönlendirme sınırının kaldırılması (1) testleri kırdı.
+  - `cd frontend`: lint, typecheck, `npm test` (62 test; `clientAddressFrom` için 10 yeni), build ve production denetimi (0 açık) geçti.
+  - Gerçek sistemde:
+    - Backend giriş sınırı 3'e düşürülerek başlatıldı. Geçici bir Playwright testi panele `X-Forwarded-For: 203.0.113.77` ile 4 kez hatalı giriş yaptı: ilk 3 deneme "e-posta veya şifre hatalı", 4. deneme "çok fazla deneme" mesajı aldı. Aynı anda `203.0.113.78` normal hata aldı; yani panel ziyaretçinin adresini iletiyor. Geçici test silindi.
+    - Normal dev ayarlarıyla `npm run e2e`: 2 test geçti.
+    - `curl` ile: 10 hatalı girişten sonra doğru şifre 429 ve `Retry-After: 90`; 40 paralel istekle 400 ziyarette sınırı aşanlar 429 aldı (`no-store`, `Retry-After`, `Location` yok).
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Sayaçlar bellekte; yeniden başlatma günlük kota dışındaki sınırları sıfırlıyor (K42'de kabul edildi).
+  - Hesap başına başarısız giriş sınırı, bir kullanıcının bilerek dışarıda bırakılmasına izin veriyor (K42'de kabul edildi). Kötüye kullanılırsa CAPTCHA veya e-postayla giriş linki düşünülebilir.
+
+### 2026-10-15 — M3 kararları
+
+- Hız sınırları ve kotalar önerilen değerlerle kesinleşti (K42; A04 kapandı).
+- Yönetici paneli `admin.vurli.io`'da olacak (K43). SSH tüneli seçeneği, her yeni bilgisayarda anahtar kurulumu gerektirdiği için tercih edilmedi; ikinci faktör (TOTP) ve hız sınırı zorunlu.
+- M3 sırası: hız sınırları → istatistik → yönetici paneli → Web Risk ve bildirim → yük testi.
+- Dependabot düzeltmesi `5e79fe6` olarak gönderildi.
 
 ### 2026-10-15 — Dependabot güncellemesinin geri alınması
 

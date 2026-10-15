@@ -1,5 +1,7 @@
 package io.vurli;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -7,6 +9,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 
@@ -41,6 +44,20 @@ public class TestcontainersConfiguration {
 			registry.add("spring.mail.port", () -> mailpitContainer.getMappedPort(SMTP_PORT));
 			registry.add("vurli.app-base-url", () -> "http://app.test");
 		};
+	}
+
+	/**
+	 * Every MockMvc request comes from its own random address, as different visitors would.
+	 * Rate limits are per address and shared by all tests in a context, so without this
+	 * unrelated tests would use up each other's limits. Tests about limits set the address
+	 * explicitly.
+	 */
+	@Bean
+	MockMvcBuilderCustomizer randomClientAddress() {
+		return (builder) -> builder.defaultRequest(get("/").with((request) -> {
+			request.setRemoteAddr(TestAccounts.randomAddress());
+			return request;
+		}));
 	}
 
 	@Bean

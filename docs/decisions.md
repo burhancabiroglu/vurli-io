@@ -55,6 +55,8 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | K39 | Panel sayfaları dinamik render edilir; Next.js `cacheComponents` ve `partialPrefetching` kapalı | Varsayılan, 2026-10-15 | Panelin her sayfası kullanıcıya özel. Nonce tabanlı CSP dinamik render gerektiriyor ve Next'in statik kabuk (PPR) yaklaşımıyla uyumsuz (Next.js CSP rehberi) |
 | K40 | Çok dillilik kütüphanesiz: dil `Accept-Language`'den seçilir, sözlükler sunucuda JSON, URL'de dil öneki yok | Varsayılan, 2026-10-15 | Next.js rehberi kütüphane şart koşmuyor; daha az bağımlılık, daha küçük tedarik zinciri. Panel giriş arkasında, arama motoru için dil öneki gerekmiyor. Dil seçici gerekirse çerezle eklenir |
 | K41 | Panelde nonce tabanlı CSP (`src/proxy.ts`); geliştirme modunda yalnızca `unsafe-eval` ve satır içi stile izin | Varsayılan, 2026-10-15 | Script'ler yalnızca kendi kaynağımızdan ve nonce'la çalışır. Geliştirme gevşetmeleri Next.js geliştirme araçları için gerekli; production sayfası tarayıcıda ihlalsiz doğrulandı |
+| K42 | Hız sınırları ve kotalar: giriş IP başına dakikada 10 ve hesap başına 15 dakikada 10 başarısız deneme; kayıt, şifre sıfırlama ve doğrulama e-postası IP başına saatte 5; link oluşturma hesap başına günde 50 ve dakikada 10; yönlendirme IP başına dakikada 300. Sayaçlar bellekte (Bucket4j); günlük link kotası ise veritabanından sayılır | Kesin, 2026-10-15 | Kayıt uç noktası başkalarının adreslerine e-posta göndermek için kötüye kullanılabiliyor; kapalı beta için yeterince sıkı, normal kullanıcıyı engellemeyecek kadar geniş. Tek instance olduğu için bellek yeterli. API'yi Next.js çağırdığından ziyaretçi IP'si Next.js tarafından iletilir; Spring bu bilgiye yalnızca iç ağdan geldiği için güvenir. Günlük kota uygulanırken veritabanına taşındı: yeniden başlatma onu sıfırlamamalı ve silinen linkler de sayılmalı |
+| K43 | Yönetici paneli `admin.vurli.io`'da, Caddy üzerinden internete açık; giriş TOTP ile iki adımlı, Spring Security CSRF açık, oturum çerezi yalnızca bu host'a ait, girişte hız sınırı | Kesin, 2026-10-15 | SSH tüneli daha küçük bir saldırı yüzeyi sunardı ama her yeni bilgisayarda anahtar kurulumu gerektirir; kullanıcı her yerden erişimi tercih etti. Bu yüzden ikinci faktör ve hız sınırı zorunlu, tek savunma hattı bunlar |
 
 ## Açık sorular
 
@@ -63,7 +65,7 @@ Bir karar değişirse satır silinmez. Durumu "Değişti → Kxx" yapılır ve y
 | A01 | E-posta gönderim servisi | M4 (kod SMTP ile sağlayıcıdan bağımsız, bkz. K32) | Postmark veya Resend: kurulumu basit, ücretsiz katmanı başlangıç için yeterli |
 | A02 | VPS sağlayıcısı ve bölgesi | M4 | Hetzner, AB bölgesi (Almanya veya Finlandiya) |
 | A03 | Gelir modeli | MVP sonrası, kullanıcı geri bildirimiyle | İlk aday freemium abonelik: ücretsiz plan limitli, ücretli planda özel alan adı ve gelişmiş istatistik |
-| A04 | Kota ve hız sınırları | M3 | Yeni hesaba günde 50 link, ileride güvenilir hesaplar için artırılır |
+| A04 | Kota ve hız sınırları | Kapandı → K42 (2026-10-15) | Yeni hesaba günde 50 link, ileride güvenilir hesaplar için artırılır |
 | A05 | Şirket, gizlilik politikası ve kullanım koşulları | M4 öncesi | Kapalı beta öncesinde hazır olmalı |
 
 ## Eski plandan çıkarılanlar

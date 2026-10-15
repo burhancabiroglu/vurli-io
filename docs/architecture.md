@@ -161,9 +161,17 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 - **Oturum:** Spring Session JDBC, 24 saat hareketsizlikte sona erer. Girişte oturum kimliği değişir (session fixation). Şifre sıfırlanınca kullanıcının bütün oturumları silinir. Çerez `SessionCookieConfiguration`'da kodda tanımlı.
 - **Doğrulanmamış hesap** giriş yapabilir ama link oluşturamaz (`email_not_verified`, 403). Doğrulama durumu oturumdan değil veritabanından okunur, bu yüzden yeniden giriş gerekmez.
 
+## Hız sınırları
+
+`abuse` modülündeki `RateLimiter`, sınır ve anahtar (adres, e-posta, kullanıcı) başına bir Bucket4j kovası tutar. Kovalar bellekte, Caffeine içinde: boşta kalan kova bir periyot sonra silinir, sınır başına en fazla 200.000 anahtar tutulur. Değerler `vurli.rate-limits.*` ayarlarında (K42); dev profili yerelde bütün istekler aynı adresten geldiği için adres başına sınırları genişletir.
+
+- Giriş, kayıt, şifre sıfırlama ve doğrulama e-postası `AuthController`'da; link oluşturma `LinkApiController`'da; yönlendirme `RedirectController`'da sınırlanır.
+- Günlük link kotası bellekte değil, veritabanında sayılır: son 24 saatte oluşturulan linkler, silinenler dahil. Yeniden başlatma kotayı sıfırlamaz. Sınırdaki iki eşzamanlı istek kotayı bir aşabilir; bunun için kilit kullanmaya değmez.
+- İstemci adresi `ClientAddresses` ile bulunur (bkz. [güvenlik](security.md#6-kaynak-tüketimi)). Next.js her API çağrısına ziyaretçinin adresini `X-Forwarded-For` olarak ekler.
+
 ## Yönetici paneli
 
-Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç: link ve hesap arama, engelleme, kötüye kullanım bildirimleri, denetim kaydı. Yalnızca `ADMIN` rolü; iki adımlı doğrulama zorunlu. Host'u ve ayrıntıları M3'te belirlenir.
+Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç: link ve hesap arama, engelleme, kötüye kullanım bildirimleri, denetim kaydı. Yalnızca `ADMIN` rolü; iki adımlı doğrulama zorunlu. `admin.vurli.io`'da çalışacak (K43); ayrıntılar M3 dilim 3'te.
 
 ## Dağıtım
 

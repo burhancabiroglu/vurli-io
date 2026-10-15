@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { errorKeyFrom, sessionIdFrom } from "./api-protocol";
+import { clientAddressFrom, errorKeyFrom, sessionIdFrom } from "./api-protocol";
 
 describe("sessionIdFrom", () => {
   it("takes only the value of the session cookie", () => {
@@ -41,4 +41,19 @@ describe("errorKeyFrom", () => {
   ])("%j -> %s", (body, expected) => {
     expect(errorKeyFrom(body)).toBe(expected);
   });
+});
+
+describe("clientAddressFrom", () => {
+  it("takes the last entry, the one our proxy wrote", () => {
+    expect(clientAddressFrom("203.0.113.9")).toBe("203.0.113.9");
+    expect(clientAddressFrom("1.1.1.1, 8.8.8.8, 203.0.113.9")).toBe("203.0.113.9");
+    expect(clientAddressFrom("2001:db8::1")).toBe("2001:db8::1");
+  });
+
+  it.each([null, "", "unknown", "evil.com", "203.0.113.9:443", "1.1.1.1, ", "203.0.113.9\r\nX-Injected: 1"])(
+    "drops %j",
+    (value) => {
+      expect(clientAddressFrom(value)).toBeNull();
+    },
+  );
 });

@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.vurli.abuse.ClientAddresses;
+import io.vurli.abuse.RateLimiter;
 import io.vurli.link.LinkResolver;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +27,12 @@ class RedirectControllerTests {
 
 	@MockitoBean
 	private LinkResolver resolver;
+
+	@MockitoBean
+	private RateLimiter rateLimiter;
+
+	@MockitoBean
+	private ClientAddresses clientAddresses;
 
 	@Test
 	void databaseFailureNeverRedirects() throws Exception {

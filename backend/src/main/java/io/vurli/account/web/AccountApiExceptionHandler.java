@@ -1,5 +1,6 @@
 package io.vurli.account.web;
 
+import io.vurli.abuse.RateLimitExceededException;
 import io.vurli.account.InvalidEmailException;
 import io.vurli.account.InvalidTokenException;
 import io.vurli.account.TooManyEmailsException;
@@ -23,6 +24,13 @@ class AccountApiExceptionHandler {
 	@ExceptionHandler(AuthenticationException.class)
 	ProblemDetail invalidCredentials() {
 		return problem(HttpStatus.UNAUTHORIZED, "invalid_credentials", null);
+	}
+
+	@ExceptionHandler(RateLimitExceededException.class)
+	ResponseEntity<ProblemDetail> rateLimited(RateLimitExceededException ex) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+			.body(problem(HttpStatus.TOO_MANY_REQUESTS, "rate_limited", null));
 	}
 
 	@ExceptionHandler(InvalidEmailException.class)

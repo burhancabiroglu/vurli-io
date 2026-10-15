@@ -8,7 +8,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 **Önlemler:**
 
-- Yalnızca e-posta doğrulamalı hesaplar link oluşturabilir. Yeni hesapların günlük kotası düşüktür.
+- Yalnızca e-posta doğrulamalı hesaplar link oluşturabilir. Her workspace 24 saatte en fazla 50 link oluşturabilir; silinen linkler de sayılır (K42). *Uygulandı.*
 - Link oluşturulurken ve hedef değiştiğinde Web Risk kontrolü yapılır. Aktif linkler haftalık olarak yeniden taranır.
 - Tanıtım sayfasında "Kötüye kullanım bildir" formu ve `abuse@vurli.io` adresi bulunur.
 - Yönetici bir linki, bir hesabı veya bir hesabın bütün linklerini tek işlemle engelleyebilir. Her engelleme denetim kaydına yazılır.
@@ -34,7 +34,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 **Önlemler:**
 
 - Şifreler Argon2id ile hash'lenir (Spring Security `DelegatingPasswordEncoder`, OWASP asgari parametreleri). Şifre en az 10, en fazla 128 karakter. *Uygulandı.*
-- Giriş denemelerine hem IP hem hesap bazında hız sınırı uygulanır. *M3.*
+- Giriş denemelerine hem IP hem hesap bazında hız sınırı uygulanır: IP başına dakikada 10 deneme, e-posta adresi başına (her yerden) 15 dakikada 10 başarısız deneme. Hesap sınırı şifreden önce denetlenir; dolunca doğru şifre de 429 alır. Kayıtlı olmayan adreslere de aynı şekilde uygulanır, hiçbir şey sızdırmaz. Bedeli: biri bilerek hatalı deneyerek bir kullanıcıyı 15 dakikaya kadar dışarıda bırakabilir (K42'de kabul edildi). *Uygulandı.*
 - Hata mesajı "e-posta veya şifre hatalı" şeklindedir; hangisinin yanlış olduğu söylenmez. Kayıt ve şifre sıfırlama da bir hesabın var olup olmadığını belli etmez. *Uygulandı.*
 - Doğrulama ve sıfırlama token'ları rastgele üretilir, tek kullanımlıktır, hash'li saklanır ve kısa ömürlüdür (24 saat ve 1 saat). E-postada URL fragment'ında taşınır. *Uygulandı.*
 - Girişte oturum kimliği yenilenir; şifre sıfırlanınca bütün oturumlar kapatılır. *Uygulandı.*
@@ -47,7 +47,7 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Aynı adrese 8 paralel kayıttan tek hesap çıkar.
 - Tekrar girişte eski oturum kimliği geçersizleşir; şifre sıfırlanınca açık oturum 401 alır.
 - Negatif kontroller: oturum kimliği yenileme, sıfırlamada oturum silme, token'ın tek kullanımlık olması ve başlık filtresi sırayla bozulunca ilgili testler başarısız oluyor.
-- Kaba kuvvet denemeleri hız sınırına takılır. *M3.*
+- Kaba kuvvet denemeleri hız sınırına takılır; başarılı girişler başarısız sayılmaz; kayıtlı olmayan adres aynı yanıtı alır (`RateLimitIntegrationTests`). *Uygulandı.*
 
 ## 4. URL hileleri ve yönlendirme bütünlüğü
 
@@ -83,7 +83,8 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 
 ## 6. Kaynak tüketimi
 
-- Kayıt, giriş, şifre sıfırlama ve link oluşturma işlemlerine hız sınırı uygulanır (Bucket4j, bellekte). Yönlendirmede IP başına geniş bir sınır vardır.
+- Kayıt, giriş, şifre sıfırlama ve link oluşturma işlemlerine hız sınırı uygulanır (Bucket4j, bellekte; değerler K42'de). E-posta gönderen üç istek (kayıt, şifre sıfırlama, doğrulama e-postası) IP başına tek bir sınırı paylaşır. Yönlendirmede IP başına dakikada 300. IPv6 adresleri /64 ağına göre sayılır, çünkü tek bir ev ya da sunucu genellikle bütün bir /64 alır. Sınırı aşan istek `429` ve `Retry-After` alır. *Uygulandı.*
+- İstemci adresi `X-Forwarded-For`'un son değeridir; önceki değerler ziyaretçi tarafından uydurulabilir. Kısa linklerde bu değeri Caddy yazar (ziyaretçinin gönderdiğini değiştirir), API'de Next.js ziyaretçinin adresini iletir. Spring yalnızca bu ikisinin arkasında çalıştığı için bu başlığa güvenir; adres olmayan değerler yok sayılır. Adresler saklanmaz.
 - Tıklama kuyruğu sınırlıdır; dolarsa olay atılır ama yönlendirme etkilenmez.
 - Listeleme sayfalıdır ve sayfa boyutunun üst sınırı vardır. İstatistik sorguları tarih aralığıyla sınırlıdır.
 - Ciddi bir DDoS saldırısında Cloudflare proxy'si devreye alınabilir. MVP'de kurulmayacak.

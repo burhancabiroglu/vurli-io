@@ -1,6 +1,7 @@
 package io.vurli.link;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,12 +70,19 @@ public class LinkManagement {
 	 * @throws InvalidAliasException if the alias breaks the alias rules
 	 * @throws AliasTakenException if the alias is already used, even by a deleted link
 	 * @throws InvalidExpiryException if the expiry is not in the future
+	 * @throws LinkQuotaExceededException if the workspace reached its daily quota
 	 */
 	public LinkView create(UUID workspaceId, CreateLinkRequest request) {
 		String targetUrl = this.targetUrlValidator.validate(request.targetUrl());
 		Instant now = this.clock.instant();
 		if (request.expiresAt() != null && !request.expiresAt().isAfter(now)) {
 			throw new InvalidExpiryException();
+		}
+		// A rolling 24 hours. Two concurrent requests at the edge can both pass; being one
+		// link over the quota is acceptable, a lock per creation is not worth it.
+		int quota = this.properties.dailyLinkQuota();
+		if (this.links.countByWorkspaceIdAndCreatedAtAfter(workspaceId, now.minus(Duration.ofDays(1))) >= quota) {
+			throw new LinkQuotaExceededException(quota);
 		}
 
 		if (request.alias() != null && !request.alias().isBlank()) {

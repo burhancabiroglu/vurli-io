@@ -78,7 +78,9 @@
     "alias_taken": "This name is already taken. Try another one.",
     "version_conflict": "The link changed somewhere else in the meantime. The current version is shown below; try again if needed.",
     "link_blocked": "This link is blocked and cannot be changed.",
-    "link_not_found": "Link not found."
+    "link_not_found": "Link not found.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "link_quota_exceeded": "You reached the number of links you can create in 24 hours. Try again later."
   },
   "links": {
     "createTitle": "New link",

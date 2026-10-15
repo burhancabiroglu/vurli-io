@@ -32,6 +32,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	implementation("com.github.ben-manes.caffeine:caffeine")
+	// In-memory rate limits (K42).
+	implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
 	// Argon2 password hashing in Spring Security needs BouncyCastle.
 	implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 	// QR codes; only the core encoder, images are drawn without AWT extras.

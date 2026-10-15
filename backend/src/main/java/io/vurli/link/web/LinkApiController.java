@@ -4,6 +4,8 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
+import io.vurli.abuse.RateLimit;
+import io.vurli.abuse.RateLimiter;
 import io.vurli.account.AccountManagement;
 import io.vurli.account.VurliUser;
 import io.vurli.link.CreateLinkRequest;
@@ -46,10 +48,14 @@ class LinkApiController {
 
 	private final AccountManagement accounts;
 
-	LinkApiController(LinkManagement links, LinkQrCodes qrCodes, AccountManagement accounts) {
+	private final RateLimiter rateLimiter;
+
+	LinkApiController(LinkManagement links, LinkQrCodes qrCodes, AccountManagement accounts,
+			RateLimiter rateLimiter) {
 		this.links = links;
 		this.qrCodes = qrCodes;
 		this.accounts = accounts;
+		this.rateLimiter = rateLimiter;
 	}
 
 	/** Unverified accounts can sign in but not create links (K34). */
@@ -58,6 +64,7 @@ class LinkApiController {
 		if (!this.accounts.isEmailVerified(user.userId())) {
 			throw new EmailNotVerifiedException();
 		}
+		this.rateLimiter.consume(RateLimit.LINK_CREATIONS_PER_USER, user.userId().toString());
 		LinkView link = this.links.create(user.workspaceId(), request);
 		return ResponseEntity.created(URI.create("/api/v1/links/" + link.id())).body(link);
 	}
