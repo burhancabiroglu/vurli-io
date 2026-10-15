@@ -11,14 +11,14 @@ Güvenlik bu projenin birinci önceliği. Aşağıda URL kısaltıcıların ger�
 - Yalnızca e-posta doğrulamalı hesaplar link oluşturabilir. Her workspace 24 saatte en fazla 50 link oluşturabilir; silinen linkler de sayılır (K42). *Uygulandı.*
 - Link oluşturulurken ve hedef değiştiğinde Web Risk kontrolü yapılır. Aktif linkler haftalık olarak yeniden taranır.
 - Tanıtım sayfasında "Kötüye kullanım bildir" formu ve `abuse@vurli.io` adresi bulunur.
-- Yönetici bir linki, bir hesabı veya bir hesabın bütün linklerini tek işlemle engelleyebilir. Her engelleme denetim kaydına yazılır.
+- Yönetici bir linki, bir hesabı veya bir hesabın bütün linklerini tek işlemle engelleyebilir. Her engelleme gerekçesiyle denetim kaydına yazılır (K50). *Uygulandı.*
 - `vurli.io`'nun kara liste durumu düzenli kontrol edilir (Google Safe Browsing site durumu, Spamhaus DBL).
 
 **Testler:**
 
 - Tehlikeli işaretli URL reddedilir (Web Risk'in test URL'leriyle).
-- Engelleme, commit'ten sonra başlayan bütün isteklerde etkilidir; eski kayıt cache'e geri yazılamaz (`LinkCacheTests` ile doğrulandı, M1).
-- Link sahibi engeli kaldıramaz.
+- Engelleme, commit'ten sonra başlayan bütün isteklerde etkilidir; eski kayıt cache'e geri yazılamaz (`LinkCacheTests`, M1). Yönetici panelinden yapılan engelleme, önbellekteki linkte bile bir sonraki ziyarette 410 döndürür (`AdminModerationIntegrationTests` ve uçtan uca `admin-block.spec.ts`).
+- Link sahibi engeli kaldıramaz; araya giren eski sürümlü bir değişiklik de toplu engeli geri alamaz (`LinkLifecycleIntegrationTests`).
 
 ## 2. Başka hesabın verisine erişim (IDOR)
 

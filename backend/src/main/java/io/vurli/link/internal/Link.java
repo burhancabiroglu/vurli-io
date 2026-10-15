@@ -7,6 +7,7 @@ import java.util.UUID;
 import io.vurli.link.LinkBlockedException;
 import io.vurli.link.LinkStatus;
 import io.vurli.link.LinkView;
+import io.vurli.link.ModeratedLink;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -113,6 +114,22 @@ public class Link {
 	public void block(Instant now) {
 		this.status = LinkStatus.BLOCKED;
 		this.updatedAt = stored(now);
+	}
+
+	/**
+	 * Back to active (K50): unblocking is mostly for mistaken blocks of live links; an owner
+	 * who wants it off can turn it off again.
+	 */
+	public void unblock(Instant now) {
+		if (this.status == LinkStatus.BLOCKED) {
+			this.status = LinkStatus.ACTIVE;
+			this.updatedAt = stored(now);
+		}
+	}
+
+	public ModeratedLink toModerated() {
+		return new ModeratedLink(this.id, this.code, this.targetUrl, this.status, this.workspaceId, this.createdAt,
+				this.deletedAt);
 	}
 
 	public LinkView toView(LinkProperties properties) {

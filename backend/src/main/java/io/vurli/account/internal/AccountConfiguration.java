@@ -13,8 +13,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -49,7 +51,8 @@ class AccountConfiguration {
 			UserAccount user = users.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("Unknown user"));
 			Workspace workspace = workspaces.findFirstByOwnerIdOrderByCreatedAt(user.id())
 				.orElseThrow(() -> new IllegalStateException("Account without workspace: " + user.id()));
-			return new VurliUser(user.id(), workspace.id(), user.email(), user.role(), user.passwordHash());
+			return new VurliUser(user.id(), workspace.id(), user.email(), user.role(), user.passwordHash(),
+					!user.isSuspended());
 		};
 	}
 
@@ -62,6 +65,13 @@ class AccountConfiguration {
 			PasswordEncoder passwordEncoder) {
 		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 		provider.setPasswordEncoder(passwordEncoder);
+		// Account status (suspension, K50) is checked after the password, not before: a
+		// suspended account then fails like a wrong password, in the same time, unless the
+		// password is right. Either way the answer is the same 401.
+		UserDetailsChecker statusChecks = new AccountStatusUserDetailsChecker();
+		provider.setPreAuthenticationChecks((user) -> {
+		});
+		provider.setPostAuthenticationChecks(statusChecks);
 		return new ProviderManager(provider);
 	}
 

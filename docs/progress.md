@@ -6,18 +6,67 @@ Son güncelleme: 2026-10-15
 
 M0, M1 ve M2 tamamlandı; repo `burhancabiroglu/vurli-io`. **M3 (istatistik ve kötüye kullanım) devam ediyor**:
 
-1. Hız sınırları ve kotalar: tamamlandı (`68cb7d9`).
-2. İstatistik: tamamlandı (`ac77e7a`, CI yeşil).
-3. Yönetici paneli: 3a (giriş ve ikinci adım) tamamlandı (aşağıdaki kayıt); 3b (arama, engelleme, denetim kaydı ekranı) sırada.
-4. Web Risk ve bildirim formu.
-5. Yük testi.
+1. Hız sınırları ve kotalar: tamamlandı.
+2. İstatistik: tamamlandı.
+3. Yönetici paneli: tamamlandı (3a `9c17824`; 3b aşağıdaki kayıt). M3'ün "bitti" şartlarından ilki (panel → yönlendirme uçtan uca testi) karşılandı.
+4. Web Risk ve bildirim formu: sırada.
+5. Yük testi: M3'ün ikinci "bitti" şartı.
 
 ## Sıradaki adım
 
-1. Dilim 3a commit'inin üç CI işini kontrol et.
-2. M3 dilim 3b: link arama (kod, hedef), hesap arama (e-posta), link engelleme (`LinkModeration.block`) ve kaldırma, bir hesabın bütün linklerini tek işlemle engelleme, denetim kaydı ekranı. Her engelleme denetim kaydına yazılır ve commit'ten sonra yönlendirmede etkili olmalı (uçtan uca test; M3'ün "bitti" şartı).
+1. Dilim 3b commit'inin üç CI işini kontrol et. Yeni uçtan uca test CI'da `docker compose exec` kullanıyor; ilk çalışmada buna dikkat.
+2. M3 dilim 4, Web Risk ve bildirim formu: Google Cloud hesabı ve faturalandırma gerektiriyor (kullanıcının açması gerekir). Ücret ve kota koşulları K24'e göre doğrulanmalı; alternatif olarak ücretsiz kaynaklar (ör. URLhaus, PhishTank) değerlendirilebilir.
 
 ## Kayıt
+
+### 2026-10-15 — M3 dilim 3b: yönetici işlemleri ve denetim kaydı
+
+- Karar: K50 (Varsayılan): engeli kaldırınca link aktif olur; askıya alma girişi kapatır, oturumları bitirir ve linkleri engeller; askıyı kaldırma yalnızca girişi açar; yöneticiler askıya alınamaz; her işlem gerekçe ister.
+- Şema: `V7__add_user_suspension.sql` (`users.suspended_at`).
+- `link`: `LinkModeration` artık `unblock`, `blockAll` (tek `UPDATE`, sürüm artırır, commit'ten sonra önbelleği temizler), `search` (kod ya da hedef; LIKE jokerleri kaçışlı) ve `get` sunuyor. Yeni `ModeratedLink`.
+- `account`:
+  - `AccountAdministration`: arama, askıya alma ve kaldırma, sahip ve aktör e-postaları.
+  - `VurliUser.isEnabled`.
+  - Hesap durumu artık şifreden sonra denetleniyor: askıdaki hesap yanlış şifreyle aynı yanıtı alıyor ve yanıt süresi farklılaşmıyor.
+- `abuse`: `AuditLog.recent`, `AuditEntry`.
+- `admin`:
+  - `/admin/links`, `/admin/accounts` ve `/admin/audit` sayfaları; üst menü.
+  - Her işlem gerekçe istiyor (3–500 karakter) ve denetim kaydına işlemi yapan yöneticiyle yazılıyor.
+  - Sayfada gösterilen arama metni, hedefler ve e-postalar escape ediliyor.
+- Uçtan uca test: `e2e/admin-block.spec.ts`. Bir kullanıcı link oluşturuyor. Bir yönetici kayıt olup TOTP kuruyor (kod Node'un `crypto` modülüyle hesaplanıyor), linki arayıp gerekçeyle engelliyor. Kısa link 410 dönüyor, sahibin sayfasında "Engellendi" görünüyor, kayıt denetim kaydında. Ortak yardımcılar `e2e/support.ts`'e taşındı.
+- Yol üstünde bulunan sorunlar:
+  - **Önbelleği sınamayan testler:** askıya alma ve toplu engelleme testleri linki engellemeden önce ziyaret etmiyordu; önbellek temizlenmese de geçerlerdi. Önce ziyaret ediliyor; temizleme kaldırılınca iki test kırılıyor.
+  - **Jokerleri sınamayan test:** arama testindeki `%25`, MockMvc'de ikinci kez kodlandığı için düz metin olarak aranıyordu ve kaçış kaldırıldığında test geçiyordu. Değer artık parametre olarak veriliyor; kaçış kaldırılınca kırılıyor. Escape testinde de aynı hata vardı, o da düzeltildi.
+  - **Tekrar çalıştırılan uçtan uca test:** denetim kaydında önceki çalıştırmaların aynı gerekçesi de bulunduğu için Playwright birden fazla eşleşmede durdu. Gerekçe her çalıştırmaya özgü.
+  - **Koyu tema:** kırmızı düğmelerdeki beyaz yazı okunmuyordu; renk iki temada da koyu kırmızı.
+- Doğrulama:
+  - `cd backend && ./gradlew build`: 315 test, 0 başarısız.
+    - `AdminModerationIntegrationTests` (9):
+      - Panelden engellenen link sonraki ziyarette 410, sahibi açamıyor (409 `link_blocked`); engeli kaldırınca 302; denetim kaydında yönetici ve gerekçe.
+      - Gerekçesiz ya da 500 karakterden uzun gerekçeli işlem reddediliyor, hiçbir şey değişmiyor.
+      - Askıya alma: sahibin API oturumu 401, iki link 410, doğru şifreyle giriş yanlış şifreyle birebir aynı 401; askı kalkınca giriş açılıyor, linkler engelli kalıyor.
+      - Toplu link engelleme girişi açık bırakıyor.
+      - Yönetici askıya alınamıyor.
+      - `%` ve `_` düz metin olarak aranıyor.
+      - Arama metni escape ediliyor.
+      - Denetim kaydı ekranı.
+      - Yalnızca şifreyle açılmış oturum ve CSRF'siz istek işlem yapamıyor.
+    - `LinkLifecycleIntegrationTests` (+2): toplu engellemeyi sahibin eski sürümlü değişikliği geri alamıyor, başka workspace etkilenmiyor; engeli kaldırma yalnızca engelli linki değiştiriyor.
+    - Negatif kontroller (her biri ayrı, sonra geri alındı), her biri testleri kırdı:
+      - toplu engellemede sürüm artışını kaldırmak;
+      - önbellek temizliğini kaldırmak (2 test);
+      - askıda oturumları silmemek;
+      - girişte askıyı yok saymak;
+      - arama kaçışını kaldırmak;
+      - gerekçe kontrolünü kaldırmak;
+      - yöneticinin askıya alınmasına izin vermek.
+  - `cd frontend && npm run lint && npm run typecheck`: geçti.
+  - `npm run e2e`: 3 test geçti; yönetici testi art arda iki kez daha çalıştırıldı ve geçti. Negatif kontrol: tek link engellemede önbellek temizliği kaldırılıp backend yeniden başlatıldığında uçtan uca test 410 yerine 302 aldı ve kırıldı; kod geri yüklendi.
+  - Uygulama içi tarayıcıda (gerçek sunucu): yerel yöneticiyle TOTP girişi, hesaplar, linkler ve denetim kaydı ekranları; konsolda hata yok.
+  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+- Açık konular:
+  - Yönetici rolünü panelden verme ya da alma yok; bilinçli olarak yalnızca başlangıç ayarıyla (K48).
+  - Denetim kaydında filtre ya da sayfalama yok; en yeni 200 kayıt.
 
 ### 2026-10-15 — M3 dilim 3a: yönetici girişi ve ikinci adım
 

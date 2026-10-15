@@ -178,7 +178,7 @@ QR kod ZXing ile sunucuda üretilir ve hedefi değil kısa URL'yi kodlar. Böyle
 
 ## Yönetici paneli
 
-Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç (K30), `admin.vurli.io`'da (K43). Giriş akışı uygulandı (M3 dilim 3a); link ve hesap arama, engelleme ve denetim kaydı ekranı dilim 3b'de.
+Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç (K30), `admin.vurli.io`'da (K43). Giriş akışı (M3 dilim 3a) ve link/hesap işlemleri (dilim 3b) uygulandı.
 
 - **Host ve oturum:** `/admin` ve altı yalnızca `vurli.hosts.admin` host'unda yanıt verir (`HostFilter`). Ayrı bir oturum çerezi kullanılır: `VURLI_ADMIN_SESSION`, yalnızca `/admin` yoluna, `SameSite=Strict`, `HttpOnly`, `Secure`. Kullanıcı panelinin çereziyle hiçbir zaman yer değiştirmez; yerel geliştirmede ikisi aynı host'ta olsa da. Yönetici oturumu 1 saat hareketsizlikte biter.
 - **Giriş:** önce e-posta ve şifre. Yönetici olmayan bir hesap, yanlış şifreyle aynı yanıtı alır. Şifre doğruysa oturum "yarı girişli" olur (5 dakika) ve kimliği yenilenir. Sonra TOTP kodu ya da yedek kod istenir. İkinci adımı henüz olmayan yönetici önce kurulum sayfasına gider: QR ve elle girilecek anahtar, ardından ilk kodla onay ve 10 yedek kod. Yedek kodlar bir kez, doğrudan sayfada gösterilir; oturuma ya da yönlendirmeye yazılmaz.
@@ -187,7 +187,9 @@ Spring içinde Thymeleaf ile, cPanel benzeri bir iç araç (K30), `admin.vurli.i
 - **Sınırlar:** şifre adımında giriş sınırları (K42); kod adımında kullanıcı başına 15 dakikada 5 yanlış kod.
 - **İlk yönetici ve kurtarma (K48, K49):** `vurli.admin.promote` (ortam değişkeni `VURLI_ADMIN_PROMOTE`) doğrulanmış bir hesabı başlangıçta yönetici yapar; `vurli.admin.reset-totp` bir yöneticinin ikinci adımını ve yedek kodlarını siler. İkisi de denetim kaydına sistem eylemi olarak yazılır ve tekrar çalıştırılınca bir şey değiştirmez.
 - **Sayfalar:** CSP `default-src 'none'`; yalnızca kendi stil dosyamız ve satır içi QR görselleri (`data:`). Spring Security CSRF token'ları açık; token'sız form isteği 403 alır. `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`.
-- **Denetim kaydı:** `abuse.AuditLog`; şu an yükseltme, ikinci adım sıfırlama ve kurulumu, giriş (yöntemiyle), reddedilen kod ve kullanılan yedek kod yazılıyor. Kayıtlarda kod, şifre veya anahtar bulunmaz.
+- **Linkler** (`/admin/links`): kodun tamamı ya da hedefin bir parçasıyla arama (silinmişler dahil, en fazla 50 sonuç; `%` ve `_` düz metin olarak aranır). Engelleme ve engeli kaldırma (K50). Hedefler yalnızca metin olarak gösterilir, tıklanabilir değildir.
+- **Hesaplar** (`/admin/accounts`): e-postanın bir parçasıyla arama. Askıya alma: `users.suspended_at` dolar, hesabın bütün oturumları silinir, workspace'in bütün linkleri tek bir `UPDATE` ile engellenir. Bu `UPDATE` sürüm numarasını da artırır, böylece sahibin araya giren eski sürümlü değişikliği engeli geri alamaz; önbellek commit'ten sonra temizlenir. Askıdaki hesap şifresi doğru olsa da girişte yanlış şifreyle aynı 401'i alır. Askı durumu şifreden sonra denetlendiği için yanıt süresi de bir şey belli etmez. Yöneticiler askıya alınamaz.
+- **Denetim kaydı** (`/admin/audit`, `abuse.AuditLog`): yükseltme, ikinci adım sıfırlama ve kurulumu, giriş (yöntemiyle), reddedilen kod, kullanılan yedek kod, link engelleme ve kaldırma, hesap askıya alma ve kaldırma, toplu link engelleme; her yönetici işlemi gerekçesiyle. En yeni 200 kayıt gösterilir. Kayıtlarda kod, şifre veya anahtar bulunmaz.
 
 ## Dağıtım
 

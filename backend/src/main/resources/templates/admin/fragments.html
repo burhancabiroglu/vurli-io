@@ -1,5 +1,5 @@
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:fragment="head(title)">
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,6 +8,22 @@
 	<link rel="stylesheet" th:href="@{/admin/assets/admin.css}">
 </head>
 <body>
+	<header th:fragment="bar" class="bar">
+		<strong><a th:href="@{/admin}">Vurli Admin</a></strong>
+		<nav>
+			<a th:href="@{/admin/links}" th:text="#{admin.nav.links}">Links</a>
+			<a th:href="@{/admin/accounts}" th:text="#{admin.nav.accounts}">Accounts</a>
+			<a th:href="@{/admin/audit}" th:text="#{admin.nav.audit}">Audit log</a>
+		</nav>
+		<span class="muted" sec:authentication="name">admin@example.com</span>
+		<form method="post" th:action="@{/admin/logout}">
+			<button type="submit" class="secondary" th:text="#{admin.home.logout}">Sign out</button>
+		</form>
+	</header>
+	<div th:fragment="flash">
+		<p class="info" role="status" th:if="${message}" th:text="#{${message}}">Done.</p>
+		<p class="error" role="alert" th:if="${error}" th:text="#{${error}}">Error</p>
+	</div>
 	<p th:fragment="error" class="error" role="alert" th:if="${error}" th:text="#{${error}}">Error</p>
 </body>
 </html>

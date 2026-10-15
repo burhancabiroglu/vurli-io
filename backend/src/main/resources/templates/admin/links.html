@@ -1,0 +1,51 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.links.title})}"></head>
+<body>
+<header th:replace="~{admin/fragments :: bar}"></header>
+<main>
+	<h1 th:text="#{admin.links.title}">Links</h1>
+	<form method="get" th:action="@{/admin/links}" class="inline">
+		<label for="q" class="sr-only" th:text="#{admin.links.search}">Find links</label>
+		<input id="q" name="q" type="search" th:value="${q}" required th:placeholder="#{admin.links.placeholder}">
+		<button type="submit" th:text="#{admin.search}">Search</button>
+	</form>
+	<div th:replace="~{admin/fragments :: flash}"></div>
+	<p class="muted" th:if="${!#strings.isEmpty(q) and #lists.isEmpty(links)}" th:text="#{admin.empty}">Nothing found.</p>
+	<table th:unless="${#lists.isEmpty(links)}">
+		<thead>
+			<tr>
+				<th th:text="#{admin.links.code}">Code</th>
+				<th th:text="#{admin.links.target}">Target</th>
+				<th th:text="#{admin.links.owner}">Owner</th>
+				<th th:text="#{admin.status}">Status</th>
+				<th th:text="#{admin.created}">Created</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="link : ${links}" th:attr="data-code=${link.code}">
+				<td><code th:text="${link.code}">abc1234</code></td>
+				<!-- Shown as text only, never as a link: it may be malicious. -->
+				<td class="target" th:text="${link.targetUrl}">https://example.com</td>
+				<td th:text="${owners[link.workspaceId]}">owner@example.com</td>
+				<td>
+					<span th:text="#{'admin.status.' + ${link.status}}">Active</span>
+					<span class="muted" th:if="${link.deletedAt != null}" th:text="#{admin.links.deleted}">(deleted)</span>
+				</td>
+				<td th:text="${@adminFormat.time(link.createdAt)}">2026-10-15 12:00 UTC</td>
+				<td>
+					<form method="post" class="action" th:with="blocked=${link.status.name() == 'BLOCKED'}"
+							th:action="@{/admin/links/{id}/{op}(id=${link.id},op=${blocked ? 'unblock' : 'block'})}">
+						<input type="hidden" name="q" th:value="${q}">
+						<input name="reason" type="text" required minlength="3" maxlength="500" th:placeholder="#{admin.reason}" th:aria-label="#{admin.reason}">
+						<button type="submit" th:class="${blocked ? 'secondary' : 'danger'}"
+								th:text="${blocked ? #messages.msg('admin.links.unblock') : #messages.msg('admin.links.block')}">Block</button>
+					</form>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</main>
+</body>
+</html>

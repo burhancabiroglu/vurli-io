@@ -255,6 +255,37 @@ class LinkLifecycleIntegrationTests {
 			.isThrownBy(() -> this.moderation.block(UUID.randomUUID()));
 	}
 
+	@Test
+	void blockingAWorkspaceCannotBeUndoneByAStaleOwnerChange() {
+		LinkView first = create("https://example.com/1");
+		LinkView second = create("https://example.com/2");
+		LinkView other = this.links.create(this.otherWorkspaceId, CreateLinkRequest.of("https://example.com/other"));
+
+		assertThat(this.moderation.blockAll(this.workspaceId)).isEqualTo(2);
+		assertThat(this.moderation.blockAll(this.workspaceId)).isZero();
+
+		// The owner's page still shows version 0; the block raised it.
+		assertThatExceptionOfType(LinkVersionConflictException.class)
+			.isThrownBy(() -> this.links.enable(this.workspaceId, first.id(), first.version()));
+		assertThat(this.links.get(this.workspaceId, first.id()).status()).isEqualTo(LinkStatus.BLOCKED);
+		assertThat(this.links.get(this.workspaceId, second.id()).status()).isEqualTo(LinkStatus.BLOCKED);
+		assertThat(this.links.get(this.otherWorkspaceId, other.id()).status()).isEqualTo(LinkStatus.ACTIVE);
+	}
+
+	@Test
+	void unblockMakesALinkActiveAndLeavesOthersAlone() {
+		LinkView blocked = create("https://example.com/blocked");
+		LinkView disabled = create("https://example.com/disabled");
+		this.links.disable(this.workspaceId, disabled.id(), disabled.version());
+		this.moderation.block(blocked.id());
+
+		this.moderation.unblock(blocked.id());
+		this.moderation.unblock(disabled.id());
+
+		assertThat(this.links.get(this.workspaceId, blocked.id()).status()).isEqualTo(LinkStatus.ACTIVE);
+		assertThat(this.links.get(this.workspaceId, disabled.id()).status()).isEqualTo(LinkStatus.DISABLED);
+	}
+
 	private LinkView create(String targetUrl) {
 		return this.links.create(this.workspaceId, CreateLinkRequest.of(targetUrl));
 	}

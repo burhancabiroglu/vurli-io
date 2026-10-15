@@ -1,0 +1,54 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.accounts.title})}"></head>
+<body>
+<header th:replace="~{admin/fragments :: bar}"></header>
+<main>
+	<h1 th:text="#{admin.accounts.title}">Accounts</h1>
+	<form method="get" th:action="@{/admin/accounts}" class="inline">
+		<label for="q" class="sr-only" th:text="#{admin.accounts.search}">Find accounts</label>
+		<input id="q" name="q" type="search" th:value="${q}" required th:placeholder="#{admin.accounts.placeholder}">
+		<button type="submit" th:text="#{admin.search}">Search</button>
+	</form>
+	<div th:replace="~{admin/fragments :: flash}"></div>
+	<p class="muted" th:if="${!#strings.isEmpty(q) and #lists.isEmpty(accounts)}" th:text="#{admin.empty}">Nothing found.</p>
+	<table th:unless="${#lists.isEmpty(accounts)}">
+		<thead>
+			<tr>
+				<th th:text="#{admin.accounts.email}">Email</th>
+				<th th:text="#{admin.status}">Status</th>
+				<th th:text="#{admin.created}">Created</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="account : ${accounts}" th:attr="data-email=${account.email}">
+				<td th:text="${account.email}">user@example.com</td>
+				<td>
+					<span th:if="${account.administrator()}" th:text="#{admin.accounts.administrator}">Administrator</span>
+					<span th:if="${account.suspended()}" class="warning" th:text="#{admin.accounts.is-suspended}">Suspended</span>
+					<span th:if="${!account.suspended() and !account.administrator()}" th:text="#{admin.accounts.active}">Active</span>
+					<span class="muted" th:unless="${account.emailVerified()}" th:text="#{admin.accounts.unverified}">(unverified)</span>
+				</td>
+				<td th:text="${@adminFormat.time(account.createdAt)}">2026-10-15 12:00 UTC</td>
+				<td th:unless="${account.administrator()}" class="actions">
+					<form method="post" class="action"
+							th:action="@{/admin/accounts/{id}/{op}(id=${account.id},op=${account.suspended() ? 'unsuspend' : 'suspend'})}">
+						<input type="hidden" name="q" th:value="${q}">
+						<input name="reason" type="text" required minlength="3" maxlength="500" th:placeholder="#{admin.reason}" th:aria-label="#{admin.reason}">
+						<button type="submit" th:class="${account.suspended() ? 'secondary' : 'danger'}"
+								th:text="${account.suspended() ? #messages.msg('admin.accounts.unsuspend') : #messages.msg('admin.accounts.suspend')}">Suspend</button>
+					</form>
+					<form method="post" class="action" th:action="@{/admin/accounts/{id}/block-links(id=${account.id})}">
+						<input type="hidden" name="q" th:value="${q}">
+						<input name="reason" type="text" required minlength="3" maxlength="500" th:placeholder="#{admin.reason}" th:aria-label="#{admin.reason}">
+						<button type="submit" class="danger" th:text="#{admin.accounts.block-links}">Block all links</button>
+					</form>
+				</td>
+				<td th:if="${account.administrator()}"></td>
+			</tr>
+		</tbody>
+	</table>
+</main>
+</body>
+</html>

@@ -28,14 +28,23 @@ public final class VurliUser implements UserDetails, CredentialsContainer {
 
 	private final String role;
 
+	/** Suspended accounts cannot sign in (K50); checked only after the password. */
+	private final boolean enabled;
+
 	private String passwordHash;
 
 	public VurliUser(UUID userId, UUID workspaceId, String email, String role, String passwordHash) {
+		this(userId, workspaceId, email, role, passwordHash, true);
+	}
+
+	public VurliUser(UUID userId, UUID workspaceId, String email, String role, String passwordHash,
+			boolean enabled) {
 		this.userId = userId;
 		this.workspaceId = workspaceId;
 		this.email = email;
 		this.role = role;
 		this.passwordHash = passwordHash;
+		this.enabled = enabled;
 	}
 
 	public UUID userId() {
@@ -61,6 +70,11 @@ public final class VurliUser implements UserDetails, CredentialsContainer {
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return List.of(new SimpleGrantedAuthority("ROLE_" + this.role));
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return this.enabled;
 	}
 
 	/** Called after authentication so the hash never ends up in the session. */

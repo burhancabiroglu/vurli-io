@@ -1,49 +1,9 @@
 import { readFile } from "node:fs/promises";
 
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import tr from "../src/lib/i18n/dictionaries/tr.json";
-
-const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
-const SHORT_BASE_URL = process.env.SHORT_BASE_URL ?? "http://localhost:8080";
-const PASSWORD = "uçtan uca test şifresi";
-const BROWSER =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1";
-
-/** The verification link from the newest email to this address, as a user would click it. */
-async function verificationLink(request: APIRequestContext, email: string): Promise<string> {
-  let link: string | undefined;
-  await expect
-    .poll(
-      async () => {
-        const search = await request.get(`${MAILPIT_URL}/api/v1/search`, { params: { query: `to:"${email}"` } });
-        const { messages } = (await search.json()) as { messages: { ID: string }[] };
-        if (messages.length === 0) {
-          return undefined;
-        }
-        const message = await request.get(`${MAILPIT_URL}/api/v1/message/${messages[0].ID}`);
-        const { Text } = (await message.json()) as { Text: string };
-        link = Text.match(/https?:\/\/\S+\/verify-email#token=[A-Za-z0-9_-]+/)?.[0];
-        return link;
-      },
-      { message: `verification email to ${email}`, timeout: 15_000 },
-    )
-    .toBeDefined();
-  return link!;
-}
-
-/**
- * Asks the short link itself where it goes, without following the redirect. Identifies
- * as a monitor, so these checks are not counted as clicks (the request fixture would
- * otherwise send the desktop Chrome User-Agent of the test project).
- */
-async function visit(request: APIRequestContext, alias: string) {
-  const response = await request.get(`${SHORT_BASE_URL}/${alias}`, {
-    maxRedirects: 0,
-    headers: { "User-Agent": "Vurli-E2E-Monitor/1.0" },
-  });
-  return { status: response.status(), location: response.headers()["location"] };
-}
+import { BROWSER, PASSWORD, SHORT_BASE_URL, verificationLink, visit } from "./support";
 
 test("a new user registers, creates a link, downloads its QR code and manages it", async ({ page, request }) => {
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;

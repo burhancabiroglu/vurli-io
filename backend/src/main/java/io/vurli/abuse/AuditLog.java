@@ -2,6 +2,7 @@ package io.vurli.abuse;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +41,18 @@ public class AuditLog {
 			.params(actorId, action, targetType, targetId, this.json.writeValueAsString(details),
 					Timestamp.from(this.clock.instant()))
 			.update();
+	}
+
+	/** The newest entries first. */
+	public List<AuditEntry> recent(int limit) {
+		return this.jdbc.sql("""
+				select id, actor_id, action, target_type, target_id, details::text as details, created_at
+				from audit_log order by created_at desc, id desc limit ?""")
+			.param(Math.clamp(limit, 1, 500))
+			.query((row, i) -> new AuditEntry(row.getLong("id"), row.getObject("actor_id", UUID.class),
+					row.getString("action"), row.getString("target_type"), row.getString("target_id"),
+					row.getString("details"), row.getTimestamp("created_at").toInstant()))
+			.list();
 	}
 
 }

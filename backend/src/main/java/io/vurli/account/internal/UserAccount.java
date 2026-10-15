@@ -38,6 +38,9 @@ public class UserAccount {
 	@Column(nullable = false)
 	private Instant updatedAt;
 
+	@Column(name = "suspended_at")
+	private Instant suspendedAt;
+
 	protected UserAccount() {
 	}
 
@@ -71,6 +74,10 @@ public class UserAccount {
 
 	public String role() {
 		return this.role;
+	}
+
+	public boolean isSuspended() {
+		return this.suspendedAt != null;
 	}
 
 	public boolean isEmailVerified() {

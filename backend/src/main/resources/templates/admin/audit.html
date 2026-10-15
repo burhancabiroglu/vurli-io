@@ -1,0 +1,31 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{admin/fragments :: head(#{admin.audit.title})}"></head>
+<body>
+<header th:replace="~{admin/fragments :: bar}"></header>
+<main>
+	<h1 th:text="#{admin.audit.title}">Audit log</h1>
+	<p class="muted" th:text="#{admin.audit.body}">The latest entries.</p>
+	<table>
+		<thead>
+			<tr>
+				<th th:text="#{admin.audit.time}">Time</th>
+				<th th:text="#{admin.audit.actor}">Who</th>
+				<th th:text="#{admin.audit.action}">Action</th>
+				<th th:text="#{admin.audit.target}">Target</th>
+				<th th:text="#{admin.audit.details}">Details</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="entry : ${entries}">
+				<td th:text="${@adminFormat.time(entry.createdAt)}">2026-10-15 12:00 UTC</td>
+				<td th:text="${entry.actorId == null ? #messages.msg('admin.audit.system') : actors[entry.actorId]}">admin@example.com</td>
+				<td><code th:text="${entry.action}">LINK_BLOCKED</code></td>
+				<td th:text="${entry.targetType + ' ' + entry.targetId}">LINK 1234</td>
+				<td class="details" th:text="${entry.details}">{}</td>
+			</tr>
+		</tbody>
+	</table>
+</main>
+</body>
+</html>
