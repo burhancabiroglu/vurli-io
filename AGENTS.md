@@ -33,6 +33,23 @@
 - Keep secrets and real personal data out of code, logs, fixtures and prompts.
 - Commit messages and PR descriptions are written in English. Commits and PRs are authored only by the user: never add `Co-Authored-By` or any other AI attribution line.
 
+## Known pitfalls
+
+Each of these has cost a failed build, a red CI run or a test that proved nothing.
+
+- **Tests that test nothing:** prove every security or cache test with a negative check: remove the protection, see the test fail, restore it. Visit a link before blocking it, or a missing cache eviction goes unnoticed. MockMvc encodes URI template variables again (`%25` becomes a plain search), so pass such values with `.param()`.
+- **Timing in limit tests:** buckets refill continuously. Assert on the rejected response itself, never on a follow-up request, and test exact `Retry-After` values in `RateLimiterTests` with the manual `TimeMeter`.
+- **Diagnose CI from evidence:** read `gh run view <id> --log-failed` or the Backend job's test annotations before changing code. A guessed fix once left CI red.
+- **Java and Spring:** annotation values must be compile-time constants (`"a".repeat(n)` does not compile; write the literal). A bean with two constructors needs `@Autowired` on the injection one. `Map.of` rejects null values. A lambda passed to `JdbcTemplate.query` can be ambiguous; cast it to `RowCallbackHandler`. `InetAddress.ofLiteral` accepts legacy IPv4 forms such as `1.2.3`, so client addresses are checked with a strict pattern.
+- **Spring Security:** an access-denied handler that redirects also catches CSRF failures; those must stay 403 (`DelegatingAccessDeniedHandler`). MockMvc does not write `SameSite` into the `Set-Cookie` header; read it with `cookie.getAttribute("SameSite")` and confirm on the real server with `curl -i`.
+- **Keys:** a Base64 AES key must decode to exactly 32 bytes; check it before use (the app refuses to start otherwise).
+- **GeoIP tests:** use national research network addresses (ULAKBİM for TR, WIDE for JP), not anycast addresses such as public DNS resolvers.
+- **Frontend and CSP:** no `dangerouslySetInnerHTML` and no inline `<style>`; components that emit inline `style` (Recharts) render only on the client. Do not disable lint rules such as React's `set-state-in-effect`; restructure instead. React 19 resets a form after its action, so echo typed values back in the error state, never passwords.
+- **E2E reruns:** the local database keeps earlier runs, so text a test searches for (an audit reason, a link alias) must be unique per run.
+- **Dependencies:** major bumps of `typescript`, `eslint` and `@types/node` are ignored in Dependabot because `eslint-config-next` does not support them yet. Never merge a PR with red CI.
+- **Load test:** reuse connections (`shareConnections`); a new TCP connection per visit exhausts local ports on macOS after about 11k requests and measures the machine, not the app.
+- **macOS shell:** BSD `sed` has no `\|`; use `perl`. Turkish text contains apostrophes that end single-quoted shell strings; use the Edit tool for docs. A scripted replacement that does not match fails silently, so check the file after editing.
+
 ## Handoff
 
 - At the end of a session, update `docs/progress.md`: what changed, which checks ran (exact commands and results), and the next step.

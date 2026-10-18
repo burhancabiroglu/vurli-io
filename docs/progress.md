@@ -25,7 +25,7 @@ Bu bölüm yeni bir sohbetin (ya da başka bir ajanın) kaldığı yerden devam 
 - İş küçük dilimlerle ilerler. Kullanıcı "devam" deyince sıradaki dilime başlanır. Bir dilimde karar gerekiyorsa önce seçenekler sorulur (önerilen seçenek ilk sırada, "(Önerilen)" etiketiyle); "Açık" kararlar varsayılmaz.
 - Her dilimin sonunda: testler, negatif kontroller (korumayı kaldırınca testin kırıldığını görmek), gerçek sunucuda `curl` ve uygulama içi tarayıcıyla deneme, bu dosyaya kayıt. Commit **yapılmaz**; kullanıcı "Dilim X'i İngilizce mesajla commit edip push et ve CI'ı kontrol et" der.
 - **Commit kuralı:** mesaj İngilizce; yazar yalnızca kullanıcı. `Co-Authored-By` ya da herhangi bir AI atıf satırı **asla** eklenmez (araç başka türlü önerse bile).
-- CI kontrolü: `gh` oturumu yok. Sonuçlar `curl -s "https://api.github.com/repos/burhancabiroglu/vurli-io/actions/runs?head_sha=<sha>"` ile okunur; kimliksiz API saatte 60 istekle sınırlı, en fazla dakikada bir sorgulanır. Kırılan testler log'da değil, Backend işinin annotation'larında görünür (`/check-runs/<id>/annotations`). Tahminle değil, annotation'la teşhis edilir.
+- CI kontrolü: bu makinede `gh` kullanıcının hesabıyla açık (`gh run list`, `gh run view <id> --log-failed`). `gh` yoksa sonuçlar `curl -s "https://api.github.com/repos/burhancabiroglu/vurli-io/actions/runs?head_sha=<sha>"` ile okunur; kimliksiz API saatte 60 istekle sınırlı, en fazla dakikada bir sorgulanır ve log okuyamaz; kırılan testler Backend işinin annotation'larında görünür (`/check-runs/<id>/annotations`). Tahminle değil, log ya da annotation'la teşhis edilir. Belgelere dokunan commit'lerde CI çalışmaz (iş akışlarında `paths` filtresi var).
 - Kariyer hedefi kurumsal şirketler: eşit seçeneklerde kurumsal dünyada yaygın Java araçları tercih edilir.
 
 ### Sıradaki adım: M4, yayın ve kapalı beta
@@ -73,7 +73,7 @@ Kurallar:
 - Commit mesajları İngilizce. Commitler yalnızca benim adıma: Co-Authored-By ya da herhangi bir AI atıf satırı asla ekleme.
 - Ben "commit et" demeden commit atma. Her dilimin sonunda testleri, negatif kontrolleri ve gerçek sunucu denemesini yap, docs/progress.md'yi güncelle.
 - Karar gerektiren yerde bana seçenek sor, önerdiğini ilk sıraya koy. "Açık" kararları varsayma.
-- CI'ı gh olmadan GitHub API'siyle kontrol et; kırılan testleri annotation'lardan oku.
+- CI'ı gh ile kontrol et (oturum açık); kırılan testi tahminle değil, log'dan ya da annotation'dan teşhis et.
 
 Şimdilik sadece belgeleri oku ve bana durumu ve M4 için ilk adımı iki üç cümleyle özetle; ben "devam" deyince başla.
 ```
