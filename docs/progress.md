@@ -1,15 +1,92 @@
 # İlerleme
 
-Son güncelleme: 2026-10-15
+Son güncelleme: 2026-10-18
 
 ## Şu an
 
-M0, M1, M2 ve M3 tamamlandı; repo `burhancabiroglu/vurli-io`. M3'ün "bitti" şartları karşılandı: yönetici engellemesinin uçtan uca testi (`e2e/admin-block.spec.ts`) ve kaydedilen yük testi sonuçları ([mimari, Ölçek](architecture.md#ölçek)).
+M0, M1, M2 ve M3 tamamlandı; repo `burhancabiroglu/vurli-io`, dal `main`. Son commit `ce917d2` (M3 dilim 5, yük testi). CI yeşil: [Backend](https://github.com/burhancabiroglu/vurli-io/actions/runs/38796097315), [E2E](https://github.com/burhancabiroglu/vurli-io/actions/runs/38796097325); Frontend bu commit'te çalışmadı, çünkü frontend değişmedi. M3'ün "bitti" şartları karşılandı: yönetici engellemesinin uçtan uca testi (`e2e/admin-block.spec.ts`) ve kaydedilen yük testi sonuçları ([mimari, Ölçek](architecture.md#ölçek)).
 
-## Sıradaki adım
+Testler: backend 350, frontend birim 65, uçtan uca (Playwright) 3; hepsi geçiyor.
 
-1. Dilim 5 commit'inin CI işlerini kontrol et.
-2. M4, yayın ve kapalı beta ([yol haritası](roadmap.md)). Açık kararlar: A01 (e-posta servisi), A02 (VPS), A05 (şirket, gizlilik politikası, kullanım koşulları). Önce dağıtım dosyaları (Dockerfile'lar, canlı Compose, Caddy) ve sırlar (Web Risk anahtarı, TOTP anahtarı, veritabanı) planlanmalı.
+## Aktarım
+
+Bu bölüm yeni bir sohbetin (ya da başka bir ajanın) kaldığı yerden devam edebilmesi için. Ayrıntı aşağıdaki kayıtlarda ve [kararlarda](decisions.md).
+
+### Şimdiye kadar yapılanlar
+
+- **M0, iskelet:** Spring Boot 4.1 / Java 25, Gradle Kotlin DSL, Spring Modulith, PostgreSQL 18 ve Flyway, Testcontainers, GitHub Actions.
+- **M1, link çekirdeği:** kod üretimi, özel ad, URL doğrulama, 302/404/410 yönlendirme, önbellek ve commit'ten sonra önbellek temizliği, sürüm kontrollü düzenleme.
+- **M2, hesaplar ve panel:** kayıt, e-posta doğrulama, şifre sıfırlama (Argon2id, Spring Session JDBC); Next.js 16 BFF panel (nonce'lu CSP, Türkçe/İngilizce); link ekranları ve QR; `HostFilter`; Playwright uçtan uca testleri ve E2E iş akışı.
+- **M3, istatistik ve kötüye kullanım:** hız sınırları ve günlük kota (K42); tıklama istatistikleri, DB-IP ülke verisi, grafik (K44–K46); `admin.vurli.io`'da TOTP'li yönetici paneli, yedek kodlar, engelleme, askıya alma, denetim kaydı (K47–K50); Web Risk kontrolü ve `vurli.io/abuse` bildirim formu (K24, K51); Gatling yük testi (K52).
+
+### Çalışma düzeni (kullanıcının tercihleri)
+
+- Kullanıcıyla Türkçe konuşulur; belgeler Türkçe, kod İngilizce. Kurallar [AGENTS.md](../AGENTS.md)'de.
+- İş küçük dilimlerle ilerler. Kullanıcı "devam" deyince sıradaki dilime başlanır. Bir dilimde karar gerekiyorsa önce seçenekler sorulur (önerilen seçenek ilk sırada, "(Önerilen)" etiketiyle); "Açık" kararlar varsayılmaz.
+- Her dilimin sonunda: testler, negatif kontroller (korumayı kaldırınca testin kırıldığını görmek), gerçek sunucuda `curl` ve uygulama içi tarayıcıyla deneme, bu dosyaya kayıt. Commit **yapılmaz**; kullanıcı "Dilim X'i İngilizce mesajla commit edip push et ve CI'ı kontrol et" der.
+- **Commit kuralı:** mesaj İngilizce; yazar yalnızca kullanıcı. `Co-Authored-By` ya da herhangi bir AI atıf satırı **asla** eklenmez (araç başka türlü önerse bile).
+- CI kontrolü: `gh` oturumu yok. Sonuçlar `curl -s "https://api.github.com/repos/burhancabiroglu/vurli-io/actions/runs?head_sha=<sha>"` ile okunur; kimliksiz API saatte 60 istekle sınırlı, en fazla dakikada bir sorgulanır. Kırılan testler log'da değil, Backend işinin annotation'larında görünür (`/check-runs/<id>/annotations`). Tahminle değil, annotation'la teşhis edilir.
+- Kariyer hedefi kurumsal şirketler: eşit seçeneklerde kurumsal dünyada yaygın Java araçları tercih edilir.
+
+### Sıradaki adım: M4, yayın ve kapalı beta
+
+[Yol haritası](roadmap.md#m4--yayın-ve-kapalı-beta-2030-saat). Bitti sayılır: `vurli.io` yayında, yedekten geri yükleme denenmiş ve beta kullanıcıları link oluşturuyor. Yönetici için iki adımlı doğrulama M3'te yapıldı.
+
+**Önce verilecek kararlar** ([açık sorular](decisions.md#açık-sorular)):
+
+- A01, e-posta servisi (öneri: Postmark veya Resend; kod SMTP ile bağımsız).
+- A02, VPS sağlayıcısı ve bölgesi (öneri: Hetzner, Almanya veya Finlandiya).
+- A05, şirket, gizlilik politikası, kullanım koşulları (kapalı betadan önce hazır olmalı).
+- Ayrıca: imajların nerede derleneceği (öneri: GitHub Actions → GHCR) ve deploy yöntemi (öneri: Actions'tan SSH ile `docker compose pull && up`), yedeklerin nereye gideceği (öneri: sunucu dışı, örneğin S3 uyumlu depolama), uptime izleme aracı.
+
+**Önerilen dilimler** (öneri; kullanıcı onaylamadı):
+
+1. **Konteynerler:** backend Dockerfile (katmanlı jar, root olmayan kullanıcı), frontend Dockerfile (Next.js `standalone`), canlı `compose.yaml` (PostgreSQL, backend, frontend, Caddy), `Caddyfile` (`vurli.io` kısa linkler ve `/abuse`, `app.vurli.io` panel, `admin.vurli.io` yönetici). Yerelde TLS'siz tam yığın denemesi.
+2. **Canlı ayarlar ve sırlar:** ortam değişkenleri listesi ve örnek dosya (gerçek değer repoda yok): veritabanı şifresi, `VURLI_ADMIN_TOTP_KEY` (32 bayt, Base64), `VURLI_WEB_RISK_API_KEY`, SMTP bilgileri, `vurli.hosts.internal` (Next.js'in Spring'e iç ağdaki adı). DB-IP dosyasının aylık güncellenmesi.
+3. **Deploy hattı:** imaj derleme ve GHCR'a gönderme, sunucuya SSH ile deploy, sağlık kontrolü, geri alma.
+4. **Yedekleme ve izleme:** günlük `pg_dump`, sunucu dışına kopya, **bir geri yükleme denemesi** (kayda geçirilir), uptime izleme.
+5. **Yasal ve hesap:** gizlilik politikası, kullanım koşulları, hesap silme (linkler, tıklamalar, oturumlar; denetim kaydı kuralı), tanıtım sayfasından `/abuse` ve `abuse@vurli.io` bağlantısı.
+6. **Yayın:** DNS, SPF/DKIM/DMARC, gerçek Web Risk denemesi (Google'ın test URL'leriyle), ilk yöneticinin `VURLI_ADMIN_PROMOTE` ile atanması, canlı sunucuda TLS'li yük testi tekrarı, 10–20 kişilik kapalı beta.
+
+**Yalnızca kullanıcının yapabileceği işler:** alan adının DNS yönetimi, VPS hesabı ve SSH anahtarı, e-posta servisi hesabı ve alan adı doğrulaması, Google Cloud projesi + faturalandırma + Web Risk API anahtarı, GitHub'da deploy sırları (repo ayarları), yasal metinlerin içeriğinin onayı, beta kullanıcılarının davet edilmesi. Önerilen ayar: `main` için branch koruması (CI yeşil olmadan birleştirme yok); Dependabot PR #1 kırmızıyken birleştirilmişti.
+
+**M3'ten devreden açık konular:**
+
+- Web Risk kotası: çok sayıda kontrolsüz link birikirse günlük ücretsiz payı aşabilir; anahtar verilince gözlenmeli.
+- Anasayfadaki link listesinde tıklama sayısı yok.
+- Yarı girişli yönetici oturumunun 5 dakikalık süresi otomatik testle sınanmadı.
+- Hedef URL'ye script yerleştirme testi (güvenlik §5) otomatik değil.
+- Dil seçici yok; dil tarayıcıdan geliyor.
+- GitHub `ubuntu-latest` 2026-10-19'dan itibaren Ubuntu 26'ya geçiyor; ilk kırmızı CI'da bu akla gelmeli.
+
+### Aktarım promptu (yeni sohbete yapıştırılır)
+
+```text
+Vurli projesine (vurli.io, URL kısaltıcı) önceki bir sohbetten devam ediyoruz. Çalışma dizini /Users/burhancabiroglu/Work/cbrlab/urlshortener, repo burhancabiroglu/vurli-io, dal main.
+
+Başlamadan önce sırayla oku: AGENTS.md, docs/progress.md (özellikle "Aktarım" bölümü), docs/decisions.md. İhtiyaç oldukça docs/roadmap.md, docs/architecture.md ve docs/security.md.
+
+Durum: M0–M3 tamamlandı, son commit ce917d2 ve CI yeşil. Sıradaki kilometre taşı M4 (yayın ve kapalı beta).
+
+Kurallar:
+- Benimle Türkçe konuş. Belgeler Türkçe, kod İngilizce.
+- Commit mesajları İngilizce. Commitler yalnızca benim adıma: Co-Authored-By ya da herhangi bir AI atıf satırı asla ekleme.
+- Ben "commit et" demeden commit atma. Her dilimin sonunda testleri, negatif kontrolleri ve gerçek sunucu denemesini yap, docs/progress.md'yi güncelle.
+- Karar gerektiren yerde bana seçenek sor, önerdiğini ilk sıraya koy. "Açık" kararları varsayma.
+- CI'ı gh olmadan GitHub API'siyle kontrol et; kırılan testleri annotation'lardan oku.
+
+Şimdilik sadece belgeleri oku ve bana durumu ve M4 için ilk adımı iki üç cümleyle özetle; ben "devam" deyince başla.
+```
+
+### M4 başlangıç promptu (aktarımdan sonra "devam" yerine kullanılabilir)
+
+```text
+M4'e başlayalım. Önce docs/progress.md'deki "Sıradaki adım: M4" bölümündeki kararları bana sor: A01 (e-posta servisi), A02 (VPS ve bölge), imaj ve deploy yöntemi, yedeklerin yeri, uptime izleme. A05'i (yasal metinler) yasal dilimine kadar bekletebiliriz. Kararları docs/decisions.md'ye yaz, ardından dilim planını docs/roadmap.md'deki M4 bölümüne işle ve bana göster.
+
+Sonra dilim 1'e (konteynerler: backend ve frontend Dockerfile'ları, canlı compose ve Caddyfile, yerelde tam yığın denemesi) başla. Sırlar repoya girmesin; yalnızca örnek ortam dosyası olsun. Bitince testleri ve denemeleri progress.md'ye yaz, commit etme.
+
+Benim yapmam gereken (DNS, VPS, hesaplar, API anahtarları) bir adım geldiğinde dur ve bana tam olarak ne yapacağımı adım adım söyle.
+```
 
 ## Kayıt
 
@@ -35,7 +112,7 @@ M0, M1, M2 ve M3 tamamlandı; repo `burhancabiroglu/vurli-io`. M3'ün "bitti" ş
   - `cd backend && loadtest/run.sh`: `RATES="1000 2000 4000 8000"`, `VIRAL_RATE=8000` ile çalıştı; bütün kademelerin doğrulamaları geçti. Ardından `limit` senaryosu saniyede 20 istekle 60 saniye çalıştı: 585 yönlendirme, 720 adet 429; doğrulama geçti.
   - Kaynak kullanımı test boyunca 5 saniyede bir `docker stats` ile örneklendi.
   - `cd backend && ./gradlew build`: 350 test, 0 başarısız; Gatling görevleri build'e girmiyor (`--dry-run` ile görüldü).
-  - GitHub Actions: bu commit yazılırken sonuç henüz yoktu.
+  - GitHub Actions (`ce917d2`): Backend ve E2E yeşil; Gradle daemon'ının Java 25 ayarı CI'da sorun çıkarmadı.
 - Açık konular: TLS ve Caddy yolda değildi; canlı sunucuda bileşenler aynı CPU'yu paylaşacak; önbellekte olmayan çok sayıda linke yayılan trafik ölçülmedi. Canlıda tekrar ölçülmeli (M4).
 
 ### 2026-10-15 — M3 dilim 4: Web Risk ve bildirim formu
