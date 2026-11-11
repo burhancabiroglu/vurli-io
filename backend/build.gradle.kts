@@ -1,6 +1,6 @@
 plugins {
 	java
-	id("org.springframework.boot") version "4.1.1"
+	id("org.springframework.boot") version "4.1.2"
 	id("io.spring.dependency-management") version "1.1.7"
 	// Load tests in src/gatling (M3); run with ./gradlew gatlingRun, never part of build.
 	id("io.gatling.gradle") version "3.16.0"
@@ -35,7 +35,7 @@ dependencies {
 	implementation("org.flywaydb:flyway-database-postgresql")
 	implementation("com.github.ben-manes.caffeine:caffeine")
 	// In-memory rate limits (K42).
-	implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
+	implementation("com.bucket4j:bucket4j_jdk17-core:8.22.0")
 	// Reads the DB-IP country database (MaxMind DB format) for click statistics (K44).
 	implementation("com.maxmind.db:maxmind-db:4.2.0")
 	// Argon2 password hashing in Spring Security needs BouncyCastle.
